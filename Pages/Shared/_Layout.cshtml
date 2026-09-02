@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - UCCW</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" asp-page="/Index">UCCW</a>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <div class="user-menu">
+                <span>@User.Identity.Name</span>
+                <form method="post" asp-page="/Account/Logout">
+                    <button type="submit" class="link-button">Cerrar sesión</button>
+                </form>
+            </div>
+        }
+    </header>
+    <main class="container">
+        @RenderBody()
+    </main>
+</body>
+</html>

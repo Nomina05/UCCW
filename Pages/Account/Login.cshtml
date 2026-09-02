@@ -1,0 +1,24 @@
+@page
+@model UCCW.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Iniciar sesión";
+}
+
+<div class="login-shell">
+    <section class="login-card">
+        <p class="eyebrow">UCCW</p>
+        <h1>Iniciar sesión</h1>
+        <p class="muted">Accede al sistema de registro de casos.</p>
+        <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
+            <div asp-validation-summary="ModelOnly" class="validation"></div>
+            <label asp-for="Input.Email"></label>
+            <input asp-for="Input.Email" autocomplete="username" autofocus />
+            <span asp-validation-for="Input.Email" class="validation"></span>
+            <label asp-for="Input.Password"></label>
+            <input asp-for="Input.Password" autocomplete="current-password" />
+            <span asp-validation-for="Input.Password" class="validation"></span>
+            <label class="remember"><input asp-for="Input.RememberMe" /> Recordarme en este equipo</label>
+            <button type="submit" class="primary-button">Entrar</button>
+        </form>
+    </section>
+</div>

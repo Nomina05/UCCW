@@ -1,0 +1,22 @@
+:root { font-family: "Segoe UI", sans-serif; color: #17243a; background: #f2f5f9; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; }
+.topbar { height: 64px; padding: 0 7%; background: #12345b; color: white; display: flex; align-items: center; justify-content: space-between; }
+.brand { color: white; text-decoration: none; font-weight: 700; font-size: 1.25rem; letter-spacing: .08em; }
+.container { max-width: 1080px; margin: 0 auto; padding: 48px 24px; }
+.user-menu { display: flex; gap: 18px; align-items: center; font-size: .9rem; }
+.user-menu form { margin: 0; }
+.link-button { border: 0; background: transparent; color: white; cursor: pointer; font: inherit; }
+.welcome-card, .login-card { background: white; border-radius: 14px; box-shadow: 0 12px 35px #14233d14; }
+.welcome-card { padding: 48px; }
+.eyebrow { color: #2470b9; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.login-shell { min-height: calc(100vh - 160px); display: grid; place-items: center; }
+.login-card { width: min(100%, 420px); padding: 38px; }
+.login-card h1 { margin: 8px 0; }
+.muted { color: #5d6b7e; margin-bottom: 28px; }
+label { display: block; margin: 16px 0 6px; font-weight: 600; font-size: .92rem; }
+input:not([type="checkbox"]) { width: 100%; padding: 11px 12px; border: 1px solid #bcc7d5; border-radius: 7px; font: inherit; }
+.remember { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+.primary-button { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 7px; background: #1769aa; color: white; cursor: pointer; font-weight: 700; font-size: 1rem; }
+.primary-button:hover { background: #105485; }
+.validation { color: #b42318; font-size: .85rem; margin-top: 8px; }
