@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Sidebar from "../components/sidebar";
 
 type Volunteer = {
   id: string;
@@ -69,8 +70,8 @@ export default function VolunteerManager() {
   }, [volunteers, search]);
 
   return (
-    <main className="clients-page">
-      <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link><Link href="/donantes">Donantes</Link><Link className="active" href="/voluntarios">Voluntarios</Link><Link href="/reportes">Reportes</Link></nav></header>
+    <main className="app-shell clients-page">
+      <Sidebar active="voluntarios" />
       <section className="clients-content">
         <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Voluntarios</h1><p>Registra a las personas que apoyan las actividades del sistema.</p></div><button onClick={openNewVolunteer}>+ Nuevo voluntario</button></div>
         <div className="clients-toolbar"><input aria-label="Buscar voluntarios" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, documento, correo o teléfono" /><span>{visibleVolunteers.length} voluntario{visibleVolunteers.length === 1 ? "" : "s"}</span></div>

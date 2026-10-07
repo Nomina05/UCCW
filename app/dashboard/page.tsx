@@ -1,12 +1,13 @@
 import Link from "next/link";
+import Sidebar from "../components/sidebar";
 import { requireSession } from "../../lib/session";
 
 export default async function DashboardPage() {
   await requireSession();
 
   return (
-    <main className="dashboard-page">
-      <header><strong>UCCW</strong><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link><Link href="/donantes">Donantes</Link><Link href="/voluntarios">Voluntarios</Link><Link href="/reportes">Reportes</Link></nav><span>Sistema de registro de casos</span></header>
+    <main className="app-shell dashboard-page">
+      <Sidebar active="inicio" />
       <section className="dashboard-card">
         <p className="eyebrow">Acceso autorizado</p>
         <h1>Bienvenido</h1>

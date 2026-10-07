@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Sidebar from "../components/sidebar";
 
 type StoredItem = { id: string; name: string; status: "Activo" | "Inactivo"; createdAt: string; [key: string]: string };
 type Source = "Clientes" | "Donantes" | "Voluntarios";
@@ -45,8 +46,8 @@ export default function ReportsDashboard() {
     URL.revokeObjectURL(url);
   }
 
-  return <main className="clients-page">
-    <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link><Link href="/donantes">Donantes</Link><Link href="/voluntarios">Voluntarios</Link><Link className="active" href="/reportes">Reportes</Link></nav></header>
+  return <main className="app-shell clients-page">
+    <Sidebar active="reportes" />
     <section className="clients-content">
       <div className="page-heading"><div><p className="eyebrow">Resumen del sistema</p><h1>Reportes</h1><p>Indicadores consolidados de clientes, donantes y voluntarios.</p></div><div className="report-actions"><button className="cancel-button" onClick={refresh}>Actualizar</button><button onClick={exportCsv}>Exportar CSV</button></div></div>
       <div className="metric-grid"><article><span>Total de clientes</span><strong>{totals.clients}</strong></article><article><span>Total de donantes</span><strong>{totals.donors}</strong></article><article><span>Total de voluntarios</span><strong>{totals.volunteers}</strong></article><article><span>Registros activos</span><strong>{totals.active}</strong></article></div>

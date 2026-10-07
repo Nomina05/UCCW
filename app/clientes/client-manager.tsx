@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Sidebar from "../components/sidebar";
 
 type Client = {
   id: string;
@@ -71,8 +72,8 @@ export default function ClientManager() {
   }, [clients, search]);
 
   return (
-    <main className="clients-page">
-      <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link className="active" href="/clientes">Clientes</Link><Link href="/donantes">Donantes</Link><Link href="/voluntarios">Voluntarios</Link><Link href="/reportes">Reportes</Link></nav></header>
+    <main className="app-shell clients-page">
+      <Sidebar active="clientes" />
       <section className="clients-content">
         <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Clientes</h1><p>Registra y consulta la información de clientes.</p></div><button onClick={openNewClient}>+ Nuevo cliente</button></div>
 
