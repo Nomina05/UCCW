@@ -17,3 +17,5 @@ SESSION_SECRET=UnaCadenaLargaAleatoriaDeAlMenos32Caracteres
 ```
 
 Configure estas tres variables en Vercel antes de publicar. Nunca suba `.env.local` al repositorio.
+
+Si no se configuran variables de entorno, el sitio funciona en modo demostración con `demo@uccw.local` y `UccwDemo2026!`. No utilice este modo para información real.

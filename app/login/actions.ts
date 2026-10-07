@@ -5,15 +5,18 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 const encoder = new TextEncoder();
+const demoEmail = "demo@uccw.local";
+const demoPassword = "UccwDemo2026!";
+const demoSessionSecret = "uccw-demo-session-only-not-for-production-2026";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const configuredPassword = process.env.ADMIN_PASSWORD;
-  const sessionSecret = process.env.SESSION_SECRET;
+  const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() || demoEmail;
+  const configuredPassword = process.env.ADMIN_PASSWORD || demoPassword;
+  const sessionSecret = process.env.SESSION_SECRET || demoSessionSecret;
 
-  if (!configuredEmail || !configuredPassword || !sessionSecret || email !== configuredEmail || password !== configuredPassword) {
+  if (email !== configuredEmail || password !== configuredPassword) {
     redirect("/login?error=1");
   }
 
