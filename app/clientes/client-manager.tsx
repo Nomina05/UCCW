@@ -72,7 +72,7 @@ export default function ClientManager() {
 
   return (
     <main className="clients-page">
-      <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link className="active" href="/clientes">Clientes</Link></nav></header>
+      <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link className="active" href="/clientes">Clientes</Link><Link href="/donantes">Donantes</Link></nav></header>
       <section className="clients-content">
         <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Clientes</h1><p>Registra y consulta la información de clientes.</p></div><button onClick={openNewClient}>+ Nuevo cliente</button></div>
 

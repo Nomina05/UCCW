@@ -6,12 +6,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="dashboard-page">
-      <header><strong>UCCW</strong><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link></nav><span>Sistema de registro de casos</span></header>
+      <header><strong>UCCW</strong><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link><Link href="/donantes">Donantes</Link></nav><span>Sistema de registro de casos</span></header>
       <section className="dashboard-card">
         <p className="eyebrow">Acceso autorizado</p>
         <h1>Bienvenido</h1>
-        <p>El login está activo. Ya puedes administrar los clientes registrados en el sistema.</p>
-        <Link className="secondary-button" href="/clientes">Abrir módulo de clientes</Link>
+        <p>El login está activo. Ya puedes administrar clientes y donantes registrados en el sistema.</p>
+        <div className="dashboard-actions"><Link className="secondary-button" href="/clientes">Abrir clientes</Link><Link className="secondary-button" href="/donantes">Abrir donantes</Link></div>
       </section>
     </main>
   );
