@@ -71,7 +71,7 @@ export default function DonorManager() {
 
   return (
     <main className="clients-page">
-      <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link><Link className="active" href="/donantes">Donantes</Link></nav></header>
+      <header className="app-header"><Link className="brand" href="/dashboard">UCCW</Link><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link><Link className="active" href="/donantes">Donantes</Link><Link href="/voluntarios">Voluntarios</Link></nav></header>
       <section className="clients-content">
         <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Donantes</h1><p>Registra y consulta a quienes apoyan la organización.</p></div><button onClick={openNewDonor}>+ Nuevo donante</button></div>
         <div className="clients-toolbar"><input aria-label="Buscar donantes" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, documento, correo o teléfono" /><span>{visibleDonors.length} donante{visibleDonors.length === 1 ? "" : "s"}</span></div>
