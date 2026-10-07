@@ -1,25 +1,17 @@
-import { jwtVerify } from "jose";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import Link from "next/link";
+import { requireSession } from "../../lib/session";
 
 export default async function DashboardPage() {
-  const token = (await cookies()).get("uccw_session")?.value;
-  const secret = process.env.SESSION_SECRET;
-  if (!token || !secret) redirect("/login");
-
-  try {
-    await jwtVerify(token, new TextEncoder().encode(secret));
-  } catch {
-    redirect("/login");
-  }
+  await requireSession();
 
   return (
     <main className="dashboard-page">
-      <header><strong>UCCW</strong><span>Sistema de registro de casos</span></header>
+      <header><strong>UCCW</strong><nav><Link href="/dashboard">Inicio</Link><Link href="/clientes">Clientes</Link></nav><span>Sistema de registro de casos</span></header>
       <section className="dashboard-card">
         <p className="eyebrow">Acceso autorizado</p>
         <h1>Bienvenido</h1>
-        <p>El login está activo. El siguiente paso será crear el módulo para registrar y gestionar casos.</p>
+        <p>El login está activo. Ya puedes administrar los clientes registrados en el sistema.</p>
+        <Link className="secondary-button" href="/clientes">Abrir módulo de clientes</Link>
       </section>
     </main>
   );
