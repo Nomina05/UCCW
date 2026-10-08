@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Section = "inicio" | "clientes" | "casos" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria";
+type Section = "inicio" | "clientes" | "casos" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo";
 
 const links: { id: Section; href: string; label: string; icon: string }[] = [
   { id: "inicio", href: "/dashboard", label: "Inicio", icon: "⌂" },
@@ -10,8 +10,9 @@ const links: { id: Section; href: string; label: string; icon: string }[] = [
   { id: "voluntarios", href: "/voluntarios", label: "Voluntarios", icon: "♧" },
   { id: "servicios", href: "/servicios", label: "Servicios", icon: "▣" },
   { id: "usuarios", href: "/usuarios", label: "Users", icon: "♙" },
-  { id: "reportes", href: "/reportes", label: "Reportes", icon: "▦" }
-  ,{ id: "auditoria", href: "/auditoria", label: "Auditoría", icon: "◷" }
+  { id: "reportes", href: "/reportes", label: "Reportes", icon: "▦" },
+  { id: "auditoria", href: "/auditoria", label: "Auditoría", icon: "◷" },
+  { id: "respaldo", href: "/respaldo", label: "Respaldo", icon: "⇅" }
 ];
 
 export default function Sidebar({ active }: { active: Section }) {
