@@ -35,9 +35,12 @@ export default function ClientManager() {
     if (!window.confirm(`Se importarán ${imported.length} clientes válidos. Las filas sin nombre se omitirán. ¿Desea continuar?`)) return;
     setImportStatus(`Importando 0 de ${imported.length} clientes…`);
     try {
-      for (let index = 0; index < imported.length; index += 200) {
-        const response = await fetch("/api/records/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ records: imported.slice(index, index + 200), skipExisting: historic }) });
-        if (!response.ok) throw new Error(); setImportStatus(`Importando ${Math.min(index + 200, imported.length)} de ${imported.length} clientes…`);
+      // Los archivos históricos incluyen notas y datos heredados extensos. Lotes más
+      // pequeños evitan exceder el límite de tamaño de las solicitudes en Vercel.
+      const batchSize = historic ? 25 : 200;
+      for (let index = 0; index < imported.length; index += batchSize) {
+        const response = await fetch("/api/records/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ records: imported.slice(index, index + batchSize), skipExisting: historic }) });
+        if (!response.ok) throw new Error(); setImportStatus(`Importando ${Math.min(index + batchSize, imported.length)} de ${imported.length} clientes…`);
       }
       const byClientId = new Map(clients.map((item) => [item.clientId, item])); imported.forEach((item) => byClientId.set(item.clientId, item)); persist([...byClientId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))); setImportStatus(`${imported.length} clientes importados correctamente.`);
     } catch { setImportStatus("No fue posible completar la importación. No se eliminaron los registros ya guardados; vuelva a intentar el archivo."); }
