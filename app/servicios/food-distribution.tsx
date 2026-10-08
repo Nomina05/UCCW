@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Sidebar from "../components/sidebar";
 
 type DistributionForm = { date: string; fullName: string; address: string; children: string; adults: string; seniors: string; };
@@ -21,6 +22,7 @@ export default function FoodDistribution() {
   const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? records.filter((record) => [record.fullName, record.address, record.date].some((value) => value.toLowerCase().includes(text))) : records; }, [records, search]);
   return <main className="app-shell clients-page"><Sidebar active="servicios" /><section className="clients-content">
     <div className="page-heading"><div><p className="eyebrow">Services</p><h1>General Food Distribution</h1><p>Registro de entrega de alimentos por hogar.</p></div><button onClick={openNew}>+ Add new</button></div>
+    <div className="service-switcher"><Link className="active" href="/servicios">General Food Distribution</Link><Link href="/servicios/clothing-drive">Clothing Drive</Link></div>
     <div className="clients-toolbar"><input aria-label="Buscar distribuciones" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por fecha, nombre o dirección" /><span>{visible.length} registro{visible.length === 1 ? "" : "s"}</span></div>
     <div className="table-card">{visible.length === 0 ? <div className="empty-state"><h2>No hay registros de distribución</h2><p>Agrega el primer registro para comenzar.</p></div> : <table><thead><tr><th>Date</th><th>Full Name</th><th>Address</th><th>Children</th><th>Adults</th><th>Seniors</th><th>Total Household</th><th aria-label="Acciones"></th></tr></thead><tbody>{visible.map((record) => <tr key={record.id}><td>{record.date}</td><td><strong>{record.fullName}</strong></td><td>{record.address}</td><td>{record.children}</td><td>{record.adults}</td><td>{record.seniors}</td><td><strong>{total(record)}</strong></td><td className="actions"><button className="text-button" onClick={() => openEdit(record)}>Editar</button><button className="text-button danger" onClick={() => remove(record)}>Eliminar</button></td></tr>)}</tbody></table>}</div>
     <p className="storage-note">Los registros se guardan en este navegador de demostración.</p>
