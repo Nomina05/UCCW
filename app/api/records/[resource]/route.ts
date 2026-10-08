@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const existingRows = await existingResponse.json() as { id: string; client_number?: string; data?: StoredRecord }[]; const existing = new Map(existingRows.map((row) => [row.client_number, { ...row.data, id: row.id }]));
     records = records.map((record) => existing.get(record.clientId || "") ? mergeClientRecord(existing.get(record.clientId || "")!, record) : record);
   }
-  const conflict = name === "clients" ? "client_number" : name === "donors" ? "donor_number" : "id";
+  const conflict = name === "clients" ? "client_number" : name === "donors" ? "donor_number" : name === "volunteers" ? "volunteer_number" : "id";
   const body = records.length === 1 ? current.resource.row(records[0]) : records.map((record) => current.resource.row(record));
   const preference = payload.skipExisting && name === "clients" ? "resolution=ignore-duplicates,return=minimal" : "resolution=merge-duplicates,return=minimal";
   const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?on_conflict=${conflict}`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: preference }), body: JSON.stringify(body) });
