@@ -65,6 +65,16 @@ create table if not exists public.case_control (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.user_records (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  profile text,
+  active boolean not null default true,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.donors (
   id uuid primary key default gen_random_uuid(),
   donor_number text not null unique,
@@ -128,6 +138,7 @@ create table if not exists public.service_records (
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
 alter table public.case_control enable row level security;
+alter table public.user_records enable row level security;
 alter table public.donors enable row level security;
 alter table public.volunteers enable row level security;
 alter table public.service_records enable row level security;
@@ -136,6 +147,7 @@ alter table public.service_records enable row level security;
 create policy "authenticated profiles" on public.profiles for all to authenticated using (true) with check (true);
 create policy "authenticated clients" on public.clients for all to authenticated using (true) with check (true);
 create policy "authenticated case control" on public.case_control for all to authenticated using (true) with check (true);
+create policy "authenticated user records" on public.user_records for all to authenticated using (true) with check (true);
 create policy "authenticated donors" on public.donors for all to authenticated using (true) with check (true);
 create policy "authenticated volunteers" on public.volunteers for all to authenticated using (true) with check (true);
 create policy "authenticated service records" on public.service_records for all to authenticated using (true) with check (true);

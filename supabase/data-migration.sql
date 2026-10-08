@@ -21,6 +21,20 @@ alter table public.case_control enable row level security;
 drop policy if exists "authenticated case control" on public.case_control;
 create policy "authenticated case control" on public.case_control for all to authenticated using (true) with check (true);
 
+-- Directorio de usuarios administrativos. Las credenciales se gestionan en Supabase Auth.
+create table if not exists public.user_records (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  profile text,
+  active boolean not null default true,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.user_records enable row level security;
+drop policy if exists "authenticated user records" on public.user_records;
+create policy "authenticated user records" on public.user_records for all to authenticated using (true) with check (true);
+
 -- Archivos privados de expedientes: fotos y documentos reales.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('uccw-files', 'uccw-files', false, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
