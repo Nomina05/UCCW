@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
+import { loadRemote } from "../lib/remote-records";
 
 type Item = { id?: string; createdAt?: string; fullName?: string; firstName?: string; lastName?: string; name?: string; amount?: string; status?: string; active?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string };
 type Activity = { id: string; title: string; detail: string; createdAt: string; href: string };
@@ -12,7 +13,7 @@ const household = (item: Item) => item.totalHousehold ? Number(item.totalHouseho
 
 export default function DashboardOverview() {
   const [data, setData] = useState({ clients: [] as Item[], donors: [] as Item[], volunteers: [] as Item[], food: [] as Item[], clothing: [] as Item[] });
-  useEffect(() => { setData({ clients: read("uccw_clients"), donors: read("uccw_donors"), volunteers: read("uccw_volunteers"), food: read("uccw_general_food_distribution"), clothing: read("uccw_clothing_drive") }); }, []);
+  useEffect(() => { const local = { clients: read("uccw_clients"), donors: read("uccw_donors"), volunteers: read("uccw_volunteers"), food: read("uccw_general_food_distribution"), clothing: read("uccw_clothing_drive") }; Promise.all([loadRemote<Item>("clients", local.clients), loadRemote<Item>("donors", local.donors), loadRemote<Item>("volunteers", local.volunteers), loadRemote<Item>("food", local.food), loadRemote<Item>("clothing", local.clothing)]).then(([clients, donors, volunteers, food, clothing]) => setData({ clients, donors, volunteers, food, clothing })); }, []);
   const metrics = useMemo(() => ({ clients: data.clients.length, donated: data.donors.reduce((sum, donor) => sum + (Number(donor.amount) || 0), 0), volunteers: data.volunteers.filter((volunteer) => volunteer.status === "Active").length, households: [...data.food, ...data.clothing].reduce((sum, service) => sum + household(service), 0) }), [data]);
   const activity = useMemo(() => {
     const collections: [Item[], string, string, string][] = [[data.clients, "Cliente", "Nuevo cliente", "/clientes"], [data.donors, "Donante", "Nueva donación", "/donantes"], [data.volunteers, "Voluntario", "Nuevo voluntario", "/voluntarios"], [data.food, "Servicio", "Food Distribution", "/servicios"], [data.clothing, "Servicio", "Clothing Drive", "/servicios/clothing-drive"]];
@@ -22,6 +23,6 @@ export default function DashboardOverview() {
     <div className="dashboard-intro"><div><p className="eyebrow">Panel operativo</p><h1>Bienvenido a UCCW</h1><p>Consulta un resumen de la gestión y registra nuevas atenciones rápidamente.</p></div><Link className="secondary-button" href="/reportes">Ver reportes</Link></div>
     <div className="metric-grid dashboard-metrics"><article><span>Clientes registrados</span><strong>{metrics.clients}</strong></article><article><span>Donaciones registradas</span><strong>${metrics.donated.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></article><article><span>Voluntarios activos</span><strong>{metrics.volunteers}</strong></article><article><span>Personas atendidas</span><strong>{metrics.households}</strong></article></div>
     <div className="dashboard-grid"><section className="dashboard-panel"><h2>Acciones rápidas</h2><div className="quick-actions"><Link href="/clientes">+ Nuevo cliente</Link><Link href="/donantes">+ Nueva donación</Link><Link href="/voluntarios">+ Nuevo voluntario</Link><Link href="/servicios">+ Food Distribution</Link><Link href="/servicios/clothing-drive">+ Clothing Drive</Link><Link href="/usuarios">+ Nuevo usuario</Link></div></section><section className="dashboard-panel"><h2>Actividad reciente</h2>{activity.length ? <ul className="activity-list">{activity.map((entry) => <li key={entry.id}><Link href={entry.href}><strong>{entry.title}</strong><span>{entry.detail}{entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleDateString("es-DO")}` : ""}</span></Link></li>)}</ul> : <div className="empty-state"><p>Aún no hay actividad registrada.</p></div>}</section></div>
-    <p className="storage-note">Los indicadores se actualizan con los datos guardados en este navegador de demostración.</p>
+    <p className="storage-note">Los indicadores se actualizan desde Supabase al iniciar sesión.</p>
   </section></main>;
 }
