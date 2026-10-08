@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Section = "inicio" | "clientes" | "donantes" | "voluntarios" | "servicios" | "reportes";
+type Section = "inicio" | "clientes" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes";
 
 const links: { id: Section; href: string; label: string; icon: string }[] = [
   { id: "inicio", href: "/dashboard", label: "Inicio", icon: "⌂" },
@@ -8,6 +8,7 @@ const links: { id: Section; href: string; label: string; icon: string }[] = [
   { id: "donantes", href: "/donantes", label: "Donantes", icon: "♥" },
   { id: "voluntarios", href: "/voluntarios", label: "Voluntarios", icon: "♧" },
   { id: "servicios", href: "/servicios", label: "Servicios", icon: "▣" },
+  { id: "usuarios", href: "/usuarios", label: "Users", icon: "♙" },
   { id: "reportes", href: "/reportes", label: "Reportes", icon: "▦" }
 ];
 
