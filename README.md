@@ -14,6 +14,8 @@ Aplicación web creada con Next.js y TypeScript para registrar y dar seguimiento
 ADMIN_EMAIL=admin@suorganizacion.gob.do
 ADMIN_PASSWORD=UnaClaveLargaYUnica
 SESSION_SECRET=UnaCadenaLargaAleatoriaDeAlMenos32Caracteres
+SUPABASE_URL=https://su-proyecto.supabase.co
+SUPABASE_ANON_KEY=su_clave_anon_de_supabase
 ```
 
 Configure estas tres variables en Vercel antes de publicar. Nunca suba `.env.local` al repositorio.
