@@ -1,86 +1,33 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
 
-type Volunteer = {
-  id: string;
-  name: string;
-  document: string;
-  phone: string;
-  email: string;
-  area: "Atención a casos" | "Logística" | "Administración" | "Comunidad";
-  availability: "Mañana" | "Tarde" | "Fin de semana" | "Flexible";
-  status: "Activo" | "Inactivo";
-  createdAt: string;
-};
-
-type VolunteerForm = Omit<Volunteer, "id" | "createdAt">;
+type VolunteerForm = { volunteerId: string; status: "Active" | "Inactive"; firstName: string; lastName: string; address: string; city: string; state: string; zip: string; phone: string; email: string; date: string; duties: string; hours: string; reason: string; age: string; languages: string; education: string; commitment: string; availability: string; skillsContribution: string; notes: string; };
+type Volunteer = VolunteerForm & { id: string; createdAt: string };
 const storageKey = "uccw_volunteers";
-const initialForm: VolunteerForm = { name: "", document: "", phone: "", email: "", area: "Atención a casos", availability: "Flexible", status: "Activo" };
+const initialForm: VolunteerForm = { volunteerId: "", status: "Active", firstName: "", lastName: "", address: "", city: "", state: "", zip: "", phone: "", email: "", date: "", duties: "", hours: "", reason: "", age: "", languages: "", education: "", commitment: "", availability: "", skillsContribution: "", notes: "" };
+
+function normalize(item: Partial<Volunteer> & { name?: string; document?: string; area?: string }): Volunteer { const names = (item.name || "").split(" "); const legacyStatus = item.status as string | undefined; return { ...initialForm, ...item, volunteerId: item.volunteerId || item.document || "", firstName: item.firstName || names.shift() || "", lastName: item.lastName || names.join(" "), duties: item.duties || item.area || "", status: legacyStatus === "Inactivo" ? "Inactive" : (legacyStatus || "Active") as VolunteerForm["status"], id: item.id || crypto.randomUUID(), createdAt: item.createdAt || new Date().toISOString() }; }
 
 export default function VolunteerManager() {
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [search, setSearch] = useState("");
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
-  const [form, setForm] = useState<VolunteerForm>(initialForm);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey);
-    if (saved) setVolunteers(JSON.parse(saved));
-  }, []);
-
-  function persist(nextVolunteers: Volunteer[]) {
-    setVolunteers(nextVolunteers);
-    window.localStorage.setItem(storageKey, JSON.stringify(nextVolunteers));
-  }
-
-  function openNewVolunteer() {
-    setEditingVolunteer(null);
-    setForm(initialForm);
-    setIsFormOpen(true);
-  }
-
-  function openEditVolunteer(volunteer: Volunteer) {
-    setEditingVolunteer(volunteer);
-    setForm({ name: volunteer.name, document: volunteer.document, phone: volunteer.phone, email: volunteer.email, area: volunteer.area, availability: volunteer.availability, status: volunteer.status });
-    setIsFormOpen(true);
-  }
-
-  function saveVolunteer(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (editingVolunteer) {
-      persist(volunteers.map((volunteer) => volunteer.id === editingVolunteer.id ? { ...volunteer, ...form } : volunteer));
-    } else {
-      persist([{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form }, ...volunteers]);
-    }
-    setIsFormOpen(false);
-  }
-
-  function deleteVolunteer(volunteer: Volunteer) {
-    if (window.confirm(`¿Eliminar el voluntario ${volunteer.name}?`)) persist(volunteers.filter((item) => item.id !== volunteer.id));
-  }
-
-  const visibleVolunteers = useMemo(() => {
-    const text = search.trim().toLowerCase();
-    if (!text) return volunteers;
-    return volunteers.filter((volunteer) => [volunteer.name, volunteer.document, volunteer.phone, volunteer.email, volunteer.area].some((value) => value.toLowerCase().includes(text)));
-  }, [volunteers, search]);
-
-  return (
-    <main className="app-shell clients-page">
-      <Sidebar active="voluntarios" />
-      <section className="clients-content">
-        <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Voluntarios</h1><p>Registra a las personas que apoyan las actividades del sistema.</p></div><button onClick={openNewVolunteer}>+ Nuevo voluntario</button></div>
-        <div className="clients-toolbar"><input aria-label="Buscar voluntarios" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, documento, correo o teléfono" /><span>{visibleVolunteers.length} voluntario{visibleVolunteers.length === 1 ? "" : "s"}</span></div>
-        <div className="table-card">
-          {visibleVolunteers.length === 0 ? <div className="empty-state"><h2>No hay voluntarios registrados</h2><p>Agrega el primer voluntario para comenzar.</p></div> : <table><thead><tr><th>Voluntario</th><th>Área</th><th>Disponibilidad</th><th>Contacto</th><th>Estado</th><th aria-label="Acciones"></th></tr></thead><tbody>{visibleVolunteers.map((volunteer) => <tr key={volunteer.id}><td><strong>{volunteer.name}</strong><small>{volunteer.document}</small></td><td>{volunteer.area}</td><td>{volunteer.availability}</td><td><span>{volunteer.email || "Sin correo"}</span><small>{volunteer.phone || "Sin teléfono"}</small></td><td><span className={`status ${volunteer.status === "Activo" ? "active-status" : "inactive-status"}`}>{volunteer.status}</span></td><td className="actions"><button className="text-button" onClick={() => openEditVolunteer(volunteer)}>Editar</button><button className="text-button danger" onClick={() => deleteVolunteer(volunteer)}>Eliminar</button></td></tr>)}</tbody></table>}
-        </div>
-        <p className="storage-note">Los datos se guardan en este navegador. Próximamente se conectarán a la base de datos central.</p>
-      </section>
-      {isFormOpen && <div className="modal-backdrop" role="presentation"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="volunteer-form-title"><div className="modal-heading"><h2 id="volunteer-form-title">{editingVolunteer ? "Editar voluntario" : "Nuevo voluntario"}</h2><button className="close-button" aria-label="Cerrar" onClick={() => setIsFormOpen(false)}>×</button></div><form onSubmit={saveVolunteer}><div className="form-grid"><label className="full-width">Nombre completo<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label><label>Documento de identidad<input value={form.document} onChange={(event) => setForm({ ...form, document: event.target.value })} required /></label><label>Estado<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as VolunteerForm["status"] })}><option>Activo</option><option>Inactivo</option></select></label><label>Área de apoyo<select value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value as VolunteerForm["area"] })}><option>Atención a casos</option><option>Logística</option><option>Administración</option><option>Comunidad</option></select></label><label>Disponibilidad<select value={form.availability} onChange={(event) => setForm({ ...form, availability: event.target.value as VolunteerForm["availability"] })}><option>Mañana</option><option>Tarde</option><option>Fin de semana</option><option>Flexible</option></select></label><label>Teléfono<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label><label>Correo electrónico<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label></div><div className="form-actions"><button type="button" className="cancel-button" onClick={() => setIsFormOpen(false)}>Cancelar</button><button type="submit">{editingVolunteer ? "Guardar cambios" : "Registrar voluntario"}</button></div></form></section></div>}
-    </main>
-  );
+  const [volunteers, setVolunteers] = useState<Volunteer[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Volunteer | null>(null); const [form, setForm] = useState<VolunteerForm>(initialForm);
+  useEffect(() => { try { setVolunteers(JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize)); } catch { setVolunteers([]); } }, []);
+  function persist(next: Volunteer[]) { setVolunteers(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
+  function update<K extends keyof VolunteerForm>(key: K, value: VolunteerForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
+  function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
+  function openEdit(volunteer: Volunteer) { setEditing(volunteer); setForm({ ...volunteer }); setIsFormOpen(true); }
+  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (editing) persist(volunteers.map((volunteer) => volunteer.id === editing.id ? { ...volunteer, ...form } : volunteer)); else persist([{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form }, ...volunteers]); setIsFormOpen(false); }
+  function remove(volunteer: Volunteer) { if (window.confirm(`¿Eliminar el voluntario ${volunteer.firstName} ${volunteer.lastName}?`)) persist(volunteers.filter((item) => item.id !== volunteer.id)); }
+  const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? volunteers.filter((volunteer) => [volunteer.volunteerId, volunteer.firstName, volunteer.lastName, volunteer.city, volunteer.phone, volunteer.email, volunteer.duties].some((value) => value.toLowerCase().includes(text))) : volunteers; }, [volunteers, search]);
+  return <main className="app-shell clients-page"><Sidebar active="voluntarios" /><section className="clients-content">
+    <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Voluntarios</h1><p>Registra y consulta la información de apoyo voluntario.</p></div><button onClick={openNew}>+ Nuevo voluntario</button></div>
+    <div className="clients-toolbar"><input aria-label="Buscar voluntarios" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por Volunteer ID, nombre, ciudad, correo o teléfono" /><span>{visible.length} voluntario{visible.length === 1 ? "" : "s"}</span></div>
+    <div className="table-card">{visible.length === 0 ? <div className="empty-state"><h2>No hay voluntarios registrados</h2><p>Agrega el primer voluntario para comenzar.</p></div> : <table><thead><tr><th>Volunteer ID</th><th>Voluntario</th><th>Duties</th><th>Availability</th><th>Status</th><th aria-label="Acciones"></th></tr></thead><tbody>{visible.map((volunteer) => <tr key={volunteer.id}><td>{volunteer.volunteerId}</td><td><strong>{volunteer.firstName} {volunteer.lastName}</strong><small>{volunteer.email || volunteer.phone || "Sin contacto"}</small></td><td>{volunteer.duties || "No indicadas"}</td><td>{volunteer.availability || "No indicada"}</td><td><span className={`status ${volunteer.status === "Active" ? "active-status" : "inactive-status"}`}>{volunteer.status}</span></td><td className="actions"><button className="text-button" onClick={() => openEdit(volunteer)}>Editar</button><button className="text-button danger" onClick={() => remove(volunteer)}>Eliminar</button></td></tr>)}</tbody></table>}</div>
+    <p className="storage-note">Los datos se guardan en este navegador de demostración.</p>
+  </section>{isFormOpen && <div className="modal-backdrop" role="presentation"><section className="modal volunteer-modal" role="dialog" aria-modal="true" aria-labelledby="volunteer-form-title"><div className="modal-heading"><h2 id="volunteer-form-title">{editing ? "Editar voluntario" : "Nuevo voluntario"}</h2><button className="close-button" aria-label="Cerrar" onClick={() => setIsFormOpen(false)}>×</button></div><form onSubmit={save}>
+    <div className="form-grid"><Field label="Volunteer ID *"><input value={form.volunteerId} onChange={(e) => update("volunteerId", e.target.value)} required /></Field><Field label="Status"><select value={form.status} onChange={(e) => update("status", e.target.value as VolunteerForm["status"])}><option>Active</option><option>Inactive</option></select></Field><Field label="First Name"><input value={form.firstName} onChange={(e) => update("firstName", e.target.value)} required /></Field><Field label="Last Name"><input value={form.lastName} onChange={(e) => update("lastName", e.target.value)} required /></Field><Field label="Address" full><input value={form.address} onChange={(e) => update("address", e.target.value)} /></Field><Field label="City"><input value={form.city} onChange={(e) => update("city", e.target.value)} /></Field><Field label="State"><input value={form.state} onChange={(e) => update("state", e.target.value)} /></Field><Field label="Zip"><input value={form.zip} onChange={(e) => update("zip", e.target.value)} /></Field><Field label="Phone"><input value={form.phone} onChange={(e) => update("phone", e.target.value)} /></Field><Field label="Email" full><input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></Field><Field label="Date"><input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} /></Field><Field label="Hours"><input type="number" min="0" step="0.5" value={form.hours} onChange={(e) => update("hours", e.target.value)} /></Field><Field label="Duties" full><input value={form.duties} onChange={(e) => update("duties", e.target.value)} /></Field><Field label="Reason"><input value={form.reason} onChange={(e) => update("reason", e.target.value)} /></Field><Field label="Age"><input type="number" min="0" value={form.age} onChange={(e) => update("age", e.target.value)} /></Field><Field label="Languages"><select value={form.languages} onChange={(e) => update("languages", e.target.value)}><option value="">Seleccione</option><option>English</option><option>Spanish</option><option>Bilingual</option><option>Other</option></select></Field><Field label="Level Of Education"><select value={form.education} onChange={(e) => update("education", e.target.value)}><option value="">Seleccione</option><option>High School</option><option>Technical</option><option>Undergraduate</option><option>Graduate</option><option>Other</option></select></Field><Field label="Commitment"><select value={form.commitment} onChange={(e) => update("commitment", e.target.value)}><option value="">Seleccione</option><option>One-time</option><option>Short-term</option><option>Ongoing</option></select></Field><Field label="Availability"><input value={form.availability} onChange={(e) => update("availability", e.target.value)} /></Field><Field label="Skills Contribution" full><input value={form.skillsContribution} onChange={(e) => update("skillsContribution", e.target.value)} /></Field><Field label="Notes" full><textarea rows={5} value={form.notes} onChange={(e) => update("notes", e.target.value)} /></Field></div>
+    <div className="form-actions"><button type="button" className="cancel-button" onClick={() => setIsFormOpen(false)}>Cancelar</button><button type="submit">{editing ? "Guardar cambios" : "Registrar voluntario"}</button></div>
+  </form></section></div>}</main>;
 }
+function Field({ label, children, full = false }: { label: string; children: React.ReactNode; full?: boolean }) { return <label className={full ? "full-width" : ""}>{label}{children}</label>; }
