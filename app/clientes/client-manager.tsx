@@ -21,8 +21,8 @@ function nextId(clients: Client[]) { const highest = clients.reduce((max, client
 
 export default function ClientManager() {
   const [clients, setClients] = useState<Client[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editingClient, setEditingClient] = useState<Client | null>(null); const [form, setForm] = useState<ClientForm>(initialForm); const [importStatus, setImportStatus] = useState(""); const importRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Client>("clients", local).then((records) => { if (active) { setClients(records.map(normalize)); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setClients([]); } return () => { active = false; }; }, []);
-  function persist(next: Client[]) { setClients(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
+  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Client>("clients", local).then((records) => { if (active) { setClients(records.map(normalize)); try { window.localStorage.setItem(storageKey, JSON.stringify(records)); } catch { /* Supabase remains the source of truth for large imports. */ } } }); } catch { setClients([]); } return () => { active = false; }; }, []);
+  function persist(next: Client[]) { setClients(next); try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* Supabase remains the source of truth for large imports. */ } }
   function update<K extends keyof ClientForm>(key: K, value: ClientForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditingClient(null); setForm({ ...initialForm, files: ["", "", "", "", ""] }); setIsFormOpen(true); }
   function openEdit(client: Client) { setEditingClient(client); setForm({ ...client, files: [...client.files] }); setIsFormOpen(true); }
