@@ -20,3 +20,11 @@ create table if not exists public.case_control (
 alter table public.case_control enable row level security;
 drop policy if exists "authenticated case control" on public.case_control;
 create policy "authenticated case control" on public.case_control for all to authenticated using (true) with check (true);
+
+-- Archivos privados de expedientes: fotos y documentos reales.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('uccw-files', 'uccw-files', false, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+on conflict (id) do nothing;
+drop policy if exists "uccw authenticated file access" on storage.objects;
+create policy "uccw authenticated file access" on storage.objects for all to authenticated
+using (bucket_id = 'uccw-files') with check (bucket_id = 'uccw-files');

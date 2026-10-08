@@ -139,3 +139,10 @@ create policy "authenticated case control" on public.case_control for all to aut
 create policy "authenticated donors" on public.donors for all to authenticated using (true) with check (true);
 create policy "authenticated volunteers" on public.volunteers for all to authenticated using (true) with check (true);
 create policy "authenticated service records" on public.service_records for all to authenticated using (true) with check (true);
+
+-- Bucket privado para documentos y fotos de expedientes.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('uccw-files', 'uccw-files', false, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+on conflict (id) do nothing;
+create policy "uccw authenticated file access" on storage.objects for all to authenticated
+using (bucket_id = 'uccw-files') with check (bucket_id = 'uccw-files');
