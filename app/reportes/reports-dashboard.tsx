@@ -1,58 +1,38 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
+import { loadRemote } from "../lib/remote-records";
 
-type StoredItem = { id: string; name: string; status: "Activo" | "Inactivo"; createdAt: string; [key: string]: string };
-type Source = "Clientes" | "Donantes" | "Voluntarios";
-type ReportRow = { source: Source; name: string; status: string; detail: string; createdAt: string };
+type Client = { id?: string; fullName?: string; city?: string; serviceDate?: string; createdAt?: string };
+type Donor = { id?: string; date?: string; amount?: string; createdAt?: string };
+type Volunteer = { id?: string; status?: string; createdAt?: string };
+type Service = { id?: string; date?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string; createdAt?: string };
+type ReportData = { clients: Client[]; donors: Donor[]; volunteers: Volunteer[]; food: Service[]; clothing: Service[] };
+const emptyData: ReportData = { clients: [], donors: [], volunteers: [], food: [], clothing: [] };
+const read = <T,>(key: string): T[] => { try { return JSON.parse(window.localStorage.getItem(key) || "[]") as T[]; } catch { return []; } };
+const number = (value?: string) => Number(value) || 0;
+const dateKey = (value?: string) => value?.match(/^\d{4}-\d{2}/)?.[0] || "";
+const labelMonth = (key: string) => key ? new Intl.DateTimeFormat("es-DO", { month: "short", year: "numeric" }).format(new Date(`${key}-01T00:00:00`)) : "Sin fecha";
 
-const readItems = (key: string): StoredItem[] => {
-  try { return JSON.parse(window.localStorage.getItem(key) || "[]"); } catch { return []; }
-};
+function BarChart({ rows, color = "#1769aa" }: { rows: { label: string; value: number; detail?: string }[]; color?: string }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return <div className="bar-chart" role="img" aria-label="Gráfico de barras">{rows.map((row) => <div className="bar-row" key={row.label}><div className="bar-label"><span>{row.label}</span><strong>{row.value.toLocaleString("en-US")}</strong></div><div className="bar-track"><i style={{ width: `${Math.max((row.value / max) * 100, row.value ? 4 : 0)}%`, backgroundColor: color }} /></div>{row.detail && <small>{row.detail}</small>}</div>)}</div>;
+}
 
 export default function ReportsDashboard() {
-  const [rows, setRows] = useState<ReportRow[]>([]);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-
-  function refresh() {
-    const clients = readItems("uccw_clients").map((item) => ({ source: "Clientes" as const, name: item.name, status: item.status, detail: item.type || "", createdAt: item.createdAt }));
-    const donors = readItems("uccw_donors").map((item) => ({ source: "Donantes" as const, name: item.name, status: item.status, detail: item.contribution || "", createdAt: item.createdAt }));
-    const volunteers = readItems("uccw_volunteers").map((item) => ({ source: "Voluntarios" as const, name: item.name, status: item.status, detail: item.area || "", createdAt: item.createdAt }));
-    setRows([...clients, ...donors, ...volunteers]);
-    setUpdatedAt(new Date().toLocaleString("es-DO"));
-  }
-
+  const [data, setData] = useState<ReportData>(emptyData); const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  function refresh() { const fallback = { clients: read<Client>("uccw_clients"), donors: read<Donor>("uccw_donors"), volunteers: read<Volunteer>("uccw_volunteers"), food: read<Service>("uccw_general_food_distribution"), clothing: read<Service>("uccw_clothing_drive") }; Promise.all([loadRemote<Client>("clients", fallback.clients), loadRemote<Donor>("donors", fallback.donors), loadRemote<Volunteer>("volunteers", fallback.volunteers), loadRemote<Service>("food", fallback.food), loadRemote<Service>("clothing", fallback.clothing)]).then(([clients, donors, volunteers, food, clothing]) => { setData({ clients, donors, volunteers, food, clothing }); setUpdatedAt(new Date().toLocaleString("es-DO")); }); }
   useEffect(() => { refresh(); }, []);
-
-  const totals = useMemo(() => ({
-    clients: rows.filter((row) => row.source === "Clientes").length,
-    donors: rows.filter((row) => row.source === "Donantes").length,
-    volunteers: rows.filter((row) => row.source === "Voluntarios").length,
-    active: rows.filter((row) => row.status === "Activo").length
-  }), [rows]);
-
-  const groups = useMemo(() => (["Clientes", "Donantes", "Voluntarios"] as Source[]).map((source) => ({ source, total: rows.filter((row) => row.source === source).length, active: rows.filter((row) => row.source === source && row.status === "Activo").length })), [rows]);
-
-  function exportCsv() {
-    const lines = [["Módulo", "Nombre", "Detalle", "Estado", "Fecha de registro"], ...rows.map((row) => [row.source, row.name, row.detail, row.status, row.createdAt])];
-    const csv = lines.map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "reporte-uccw.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  return <main className="app-shell clients-page">
-    <Sidebar active="reportes" />
-    <section className="clients-content">
-      <div className="page-heading"><div><p className="eyebrow">Resumen del sistema</p><h1>Reportes</h1><p>Indicadores consolidados de clientes, donantes y voluntarios.</p></div><div className="report-actions"><button className="cancel-button" onClick={refresh}>Actualizar</button><button onClick={exportCsv}>Exportar CSV</button></div></div>
-      <div className="metric-grid"><article><span>Total de clientes</span><strong>{totals.clients}</strong></article><article><span>Total de donantes</span><strong>{totals.donors}</strong></article><article><span>Total de voluntarios</span><strong>{totals.volunteers}</strong></article><article><span>Registros activos</span><strong>{totals.active}</strong></article></div>
-      <div className="report-grid"><section className="table-card report-section"><h2>Estado por módulo</h2><table><thead><tr><th>Módulo</th><th>Total</th><th>Activos</th></tr></thead><tbody>{groups.map((group) => <tr key={group.source}><td>{group.source}</td><td>{group.total}</td><td>{group.active}</td></tr>)}</tbody></table></section><section className="table-card report-section"><h2>Actividad reciente</h2>{rows.length === 0 ? <div className="empty-state"><p>Aún no hay datos para reportar.</p></div> : <table><thead><tr><th>Módulo</th><th>Registro</th><th>Estado</th></tr></thead><tbody>{[...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5).map((row, index) => <tr key={`${row.source}-${row.name}-${index}`}><td>{row.source}</td><td><strong>{row.name}</strong><small>{row.detail}</small></td><td><span className={`status ${row.status === "Activo" ? "active-status" : "inactive-status"}`}>{row.status}</span></td></tr>)}</tbody></table>}</section></div>
-      <p className="storage-note">Última actualización: {updatedAt || "Cargando…"}. Los reportes reflejan los datos guardados en este navegador.</p>
-    </section>
-  </main>;
+  const totals = useMemo(() => ({ clients: data.clients.length, services: data.food.length + data.clothing.length, population: data.food.reduce((sum, record) => sum + number(record.children) + number(record.adults) + number(record.seniors), 0) + data.clothing.reduce((sum, record) => sum + number(record.totalHousehold), 0), donations: data.donors.reduce((sum, donor) => sum + number(donor.amount), 0) }), [data]);
+  const monthly = useMemo(() => { const source = [...data.clients.map((item) => item.serviceDate || item.createdAt), ...data.food.map((item) => item.date || item.createdAt), ...data.clothing.map((item) => item.date || item.createdAt)]; const grouped = source.map(dateKey).filter(Boolean).reduce<Record<string, number>>((result, key) => ({ ...result, [key]: (result[key] || 0) + 1 }), {}); return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([key, value]) => ({ label: labelMonth(key), value })); }, [data]);
+  const services = useMemo(() => [{ label: "Food Distribution", value: data.food.length, detail: `${data.food.reduce((sum, item) => sum + number(item.children) + number(item.adults) + number(item.seniors), 0)} personas` }, { label: "Clothing Drive", value: data.clothing.length, detail: `${data.clothing.reduce((sum, item) => sum + number(item.totalHousehold), 0)} personas del hogar` }], [data]);
+  const zones = useMemo(() => { const totalsByCity = data.clients.reduce<Record<string, number>>((result, client) => { const city = client.city?.trim() || "Sin ciudad"; result[city] = (result[city] || 0) + 1; return result; }, {}); return Object.entries(totalsByCity).sort(([, a], [, b]) => b - a).slice(0, 6).map(([label, value]) => ({ label, value })); }, [data.clients]);
+  const population = useMemo(() => [{ label: "Niños", value: data.food.reduce((sum, item) => sum + number(item.children), 0) }, { label: "Adultos", value: data.food.reduce((sum, item) => sum + number(item.adults), 0) }, { label: "Seniors", value: data.food.reduce((sum, item) => sum + number(item.seniors), 0) }, { label: "Hogares - ropa", value: data.clothing.reduce((sum, item) => sum + number(item.totalHousehold), 0) }], [data]);
+  function exportCsv() { const lines = [["Indicador", "Valor"], ["Clientes registrados", totals.clients], ["Servicios registrados", totals.services], ["Población atendida", totals.population], ["Donaciones", totals.donations], [], ["Servicio", "Registros", "Población"], ...services.map((service) => [service.label, service.value, service.detail]), [], ["Zona", "Clientes"], ...zones.map((zone) => [zone.label, zone.value])]; const csv = lines.map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n"); const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = "reporte-uccw.csv"; link.click(); URL.revokeObjectURL(url); }
+  return <main className="app-shell clients-page"><Sidebar active="reportes" /><section className="clients-content"><div className="page-heading"><div><p className="eyebrow">Análisis operativo</p><h1>Reportes</h1><p>Indicadores de atención por período, servicio, zona y población atendida.</p></div><div className="report-actions"><button className="cancel-button" onClick={refresh}>Actualizar</button><button onClick={exportCsv}>Exportar CSV</button></div></div>
+    <div className="metric-grid"><article><span>Clientes registrados</span><strong>{totals.clients.toLocaleString("en-US")}</strong></article><article><span>Servicios registrados</span><strong>{totals.services.toLocaleString("en-US")}</strong></article><article><span>Población atendida</span><strong>{totals.population.toLocaleString("en-US")}</strong></article><article><span>Donaciones registradas</span><strong>${totals.donations.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong></article></div>
+    <div className="report-grid enhanced-report-grid"><section className="table-card report-section chart-section"><h2>Atenciones por mes</h2><p>Clientes y servicios registrados durante los últimos seis meses con actividad.</p>{monthly.length ? <BarChart rows={monthly} /> : <div className="empty-state"><p>Aún no hay fechas para graficar.</p></div>}</section><section className="table-card report-section chart-section"><h2>Atenciones por servicio</h2><p>Registros de distribución y población asociada.</p><BarChart rows={services} color="#1b7f74" /></section><section className="table-card report-section chart-section"><h2>Clientes por zona</h2><p>Principales ciudades según expedientes registrados.</p>{zones.length ? <BarChart rows={zones} color="#7c3aed" /> : <div className="empty-state"><p>Aún no hay zonas registradas.</p></div>}</section><section className="table-card report-section chart-section"><h2>Población atendida</h2><p>Desglose basado en las distribuciones de alimentos y ropa.</p><BarChart rows={population} color="#d97706" /></section></div>
+    <p className="storage-note">Última actualización: {updatedAt || "Cargando…"}. Los gráficos se calculan con la información sincronizada desde Supabase.</p>
+  </section></main>;
 }
