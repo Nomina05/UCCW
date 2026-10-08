@@ -12,7 +12,7 @@ type ClientForm = {
   healthAndWellness: boolean; workersResourceCenter: boolean; educationalEmpowerment: boolean; photo: string; files: string[]; caseNotes: string;
 };
 type LegacyData = Record<string, unknown>;
-type Client = ClientForm & { id: string; createdAt: string; legacyData?: LegacyData; legacySources?: LegacyData[] };
+type Client = ClientForm & { id: string; createdAt: string; createdBy?: string; updatedAt?: string; updatedBy?: string; legacyData?: LegacyData; legacySources?: LegacyData[] };
 type ServiceRecord = { id?: string; date?: string; fullName?: string; address?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string; createdAt?: string };
 type LegacyRow = Record<string, string>;
 const storageKey = "uccw_clients";
@@ -90,6 +90,7 @@ function ClientHistoryModal({ client, services, close, edit }: { client: Client;
     <section className="history-section"><h3>Servicios solicitados</h3><p>{requested.length ? requested.join(" · ") : "No hay servicios solicitados registrados."}</p></section>
     <section className="history-section"><h3>Notas del caso</h3><p className="case-notes">{client.caseNotes || "No hay notas registradas."}</p></section>
     <section className="history-section"><h3>Documentos</h3>{documents.length ? <ul className="history-documents">{documents.map((document, index) => <li key={`${document}-${index}`}>{document}</li>)}</ul> : <p className="history-empty">No hay documentos registrados.</p>}</section>
+    <section className="history-section audit-section"><h3>Auditoría</h3><p>Creado por: <strong>{client.createdBy || "Registro histórico"}</strong> · {new Date(client.createdAt).toLocaleString("es-DO")}</p><p>Última modificación: <strong>{client.updatedBy || client.createdBy || "No disponible"}</strong> · {client.updatedAt ? new Date(client.updatedAt).toLocaleString("es-DO") : "Sin modificaciones registradas"}</p></section>
   </section></div>;
 }
 

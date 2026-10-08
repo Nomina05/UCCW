@@ -8,14 +8,14 @@ function hasContent(value: unknown) { return typeof value === "string" ? value.t
 function mergeClientRecord(existing: StoredRecord, incoming: StoredRecord) {
   const merged: StoredRecord = { ...existing };
   for (const [key, value] of Object.entries(incoming)) {
-    if (key === "legacyData" || key === "legacySources" || key === "id" || key === "createdAt") continue;
+    if (["legacyData", "legacySources", "id", "createdAt", "createdBy", "createdByUserId", "updatedAt", "updatedBy", "updatedByUserId"].includes(key)) continue;
     if (typeof value === "boolean") merged[key] = Boolean(merged[key]) || value;
     else if (Array.isArray(value)) merged[key] = Array.from(new Set([...(Array.isArray(merged[key]) ? merged[key] as unknown[] : []), ...value].filter(hasContent)));
     else if (hasContent(value)) merged[key] = value;
   }
   const sources = [...(Array.isArray(existing.legacySources) ? existing.legacySources : []), existing.legacyData, ...(Array.isArray(incoming.legacySources) ? incoming.legacySources : []), incoming.legacyData].filter(hasContent);
   const seen = new Set<string>(); merged.legacySources = sources.filter((source) => { const key = JSON.stringify(source); if (seen.has(key)) return false; seen.add(key); return true; });
-  merged.legacyData = incoming.legacyData || existing.legacyData; merged.id = existing.id || incoming.id; merged.createdAt = existing.createdAt || incoming.createdAt;
+  merged.legacyData = incoming.legacyData || existing.legacyData; merged.id = existing.id || incoming.id; merged.createdAt = existing.createdAt || incoming.createdAt; merged.createdBy = existing.createdBy || incoming.createdBy; merged.createdByUserId = existing.createdByUserId || incoming.createdByUserId;
   return merged;
 }
 
@@ -32,7 +32,7 @@ function resourceFrom(value: string): Resource | null { return Object.prototype.
 async function context(request: NextRequest, resourceName: string) {
   const resource = resourceFrom(resourceName); const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_ANON_KEY; const token = request.cookies.get("uccw_session")?.value;
   if (!resource || !url || !key || !token) return null;
-  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken }; } catch { return null; }
+  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, actor: { email, userId } }; } catch { return null; }
 }
 function headers(key: string, accessToken: string, extra: Record<string, string> = {}) { return { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", ...extra }; }
 
@@ -69,6 +69,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const existingRows = await existingResponse.json() as { id: string; client_number?: string; data?: StoredRecord }[]; const existing = new Map(existingRows.map((row) => [row.client_number, { ...row.data, id: row.id }]));
     records = records.map((record) => existing.get(record.clientId || "") ? mergeClientRecord(existing.get(record.clientId || "")!, record) : record);
   }
+  const auditedAt = new Date().toISOString();
+  records = records.map((record) => ({ ...record, createdBy: typeof record.createdBy === "string" && record.createdBy ? record.createdBy : current.actor.email, createdByUserId: typeof record.createdByUserId === "string" && record.createdByUserId ? record.createdByUserId : current.actor.userId, updatedBy: current.actor.email, updatedByUserId: current.actor.userId, updatedAt: auditedAt }));
   const conflict = name === "clients" ? "client_number" : name === "donors" ? "donor_number" : name === "volunteers" ? "volunteer_number" : "id";
   const body = records.length === 1 ? current.resource.row(records[0]) : records.map((record) => current.resource.row(record));
   const preference = payload.skipExisting && name === "clients" ? "resolution=ignore-duplicates,return=minimal" : "resolution=merge-duplicates,return=minimal";
