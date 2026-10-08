@@ -39,17 +39,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const filter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : "";
   const pageSize = 1000;
-  const rows: { data?: StoredRecord; id: string; created_at: string }[] = [];
+  const rows: { data?: StoredRecord; id: string; created_at: string; client_number?: string }[] = [];
 
   for (let offset = 0; offset < 50000; offset += pageSize) {
-    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at&order=created_at.desc&limit=${pageSize}&offset=${offset}${filter}`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
+    const clientSelect = name === "clients" ? ",client_number" : "";
+    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc&limit=${pageSize}&offset=${offset}${filter}`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
     if (!response.ok) return NextResponse.json({ error: "No fue posible leer los registros" }, { status: response.status });
     const page = await response.json() as { data?: StoredRecord; id: string; created_at: string }[];
     rows.push(...page);
     if (page.length < pageSize) break;
   }
 
-  return NextResponse.json(rows.map((row) => ({ ...row.data, id: row.data?.id || row.id, createdAt: row.data?.createdAt || row.created_at })));
+  return NextResponse.json(rows.map((row) => ({ ...row.data, id: row.data?.id || row.id, clientId: name === "clients" ? row.client_number || row.data?.clientId : row.data?.clientId, createdAt: row.data?.createdAt || row.created_at })));
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
