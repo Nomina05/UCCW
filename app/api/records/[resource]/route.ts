@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   for (let offset = 0; offset < 50000; offset += pageSize) {
     const clientSelect = name === "clients" ? ",client_number" : "";
-    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc&limit=${pageSize}&offset=${offset}${filter}`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
+    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}${filter}`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
     if (!response.ok) return NextResponse.json({ error: "No fue posible leer los registros" }, { status: response.status });
     const page = await response.json() as { data?: StoredRecord; id: string; created_at: string }[];
     rows.push(...page);
