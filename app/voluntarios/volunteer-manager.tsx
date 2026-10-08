@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
+import { deleteRemote, loadRemote, saveRemote } from "../lib/remote-records";
 
 type VolunteerForm = { volunteerId: string; status: "Active" | "Inactive"; firstName: string; lastName: string; address: string; city: string; state: string; zip: string; phone: string; email: string; date: string; duties: string; hours: string; reason: string; age: string; languages: string; education: string; commitment: string; availability: string; skillsContribution: string; notes: string; };
 type Volunteer = VolunteerForm & { id: string; createdAt: string };
@@ -13,13 +14,13 @@ function nextId(volunteers: Volunteer[]) { const highest = volunteers.reduce((ma
 
 export default function VolunteerManager() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Volunteer | null>(null); const [form, setForm] = useState<VolunteerForm>(initialForm);
-  useEffect(() => { try { setVolunteers(JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize)); } catch { setVolunteers([]); } }, []);
+  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Volunteer>("volunteers", local).then((records) => { if (active) { setVolunteers(records.map(normalize)); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setVolunteers([]); } return () => { active = false; }; }, []);
   function persist(next: Volunteer[]) { setVolunteers(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
   function update<K extends keyof VolunteerForm>(key: K, value: VolunteerForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(volunteer: Volunteer) { setEditing(volunteer); setForm({ ...volunteer }); setIsFormOpen(true); }
-  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (editing) persist(volunteers.map((volunteer) => volunteer.id === editing.id ? { ...volunteer, ...form } : volunteer)); else persist([{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, volunteerId: nextId(volunteers) }, ...volunteers]); setIsFormOpen(false); }
-  function remove(volunteer: Volunteer) { if (window.confirm(`¿Eliminar el voluntario ${volunteer.firstName} ${volunteer.lastName}?`)) persist(volunteers.filter((item) => item.id !== volunteer.id)); }
+  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, volunteerId: nextId(volunteers) }; persist(editing ? volunteers.map((volunteer) => volunteer.id === editing.id ? record : volunteer) : [record, ...volunteers]); saveRemote("volunteers", record); setIsFormOpen(false); }
+  function remove(volunteer: Volunteer) { if (window.confirm(`¿Eliminar el voluntario ${volunteer.firstName} ${volunteer.lastName}?`)) { persist(volunteers.filter((item) => item.id !== volunteer.id)); deleteRemote("volunteers", volunteer.id); } }
   const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? volunteers.filter((volunteer) => [volunteer.volunteerId, volunteer.firstName, volunteer.lastName, volunteer.city, volunteer.phone, volunteer.email, volunteer.duties].some((value) => value.toLowerCase().includes(text))) : volunteers; }, [volunteers, search]);
   return <main className="app-shell clients-page"><Sidebar active="voluntarios" /><section className="clients-content">
     <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Voluntarios</h1><p>Registra y consulta la información de apoyo voluntario.</p></div><button onClick={openNew}>+ Nuevo voluntario</button></div>

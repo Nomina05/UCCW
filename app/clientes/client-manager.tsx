@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/sidebar";
+import { deleteRemote, loadRemote, saveRemote } from "../lib/remote-records";
 
 type ClientForm = {
   clientId: string; serviceDate: string; fullName: string; dateOfBirth: string; last4Ssn: string; ethnicity: string; gender: string;
@@ -19,14 +20,14 @@ function nextId(clients: Client[]) { const highest = clients.reduce((max, client
 
 export default function ClientManager() {
   const [clients, setClients] = useState<Client[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editingClient, setEditingClient] = useState<Client | null>(null); const [form, setForm] = useState<ClientForm>(initialForm);
-  useEffect(() => { try { setClients(JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize)); } catch { setClients([]); } }, []);
+  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Client>("clients", local).then((records) => { if (active) { setClients(records.map(normalize)); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setClients([]); } return () => { active = false; }; }, []);
   function persist(next: Client[]) { setClients(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
   function update<K extends keyof ClientForm>(key: K, value: ClientForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditingClient(null); setForm({ ...initialForm, files: ["", "", "", "", ""] }); setIsFormOpen(true); }
   function openEdit(client: Client) { setEditingClient(client); setForm({ ...client, files: [...client.files] }); setIsFormOpen(true); }
   function updateFile(index: number, name: string) { const files = [...form.files]; files[index] = name; update("files", files); }
-  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (editingClient) persist(clients.map((client) => client.id === editingClient.id ? { ...client, ...form } : client)); else persist([{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, clientId: nextId(clients) }, ...clients]); setIsFormOpen(false); }
-  function remove(client: Client) { if (window.confirm(`¿Eliminar el cliente ${client.fullName}?`)) persist(clients.filter((item) => item.id !== client.id)); }
+  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editingClient ? { ...editingClient, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, clientId: nextId(clients) }; persist(editingClient ? clients.map((client) => client.id === editingClient.id ? record : client) : [record, ...clients]); saveRemote("clients", record); setIsFormOpen(false); }
+  function remove(client: Client) { if (window.confirm(`¿Eliminar el cliente ${client.fullName}?`)) { persist(clients.filter((item) => item.id !== client.id)); deleteRemote("clients", client.id); } }
   const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? clients.filter((client) => [client.fullName, client.last4Ssn, client.phone, client.email, client.city].some((value) => value.toLowerCase().includes(text))) : clients; }, [clients, search]);
   return <main className="app-shell clients-page"><Sidebar active="clientes" /><section className="clients-content">
     <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Clientes</h1><p>Registra y consulta la información de cada cliente.</p></div><button onClick={openNew}>+ Nuevo cliente</button></div>

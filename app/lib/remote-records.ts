@@ -1,0 +1,3 @@
+export async function loadRemote<T>(resource: string, fallback: T[]): Promise<T[]> { try { const response = await fetch(`/api/records/${resource}`, { cache: "no-store" }); return response.ok ? await response.json() as T[] : fallback; } catch { return fallback; } }
+export function saveRemote(resource: string, record: unknown) { void fetch(`/api/records/${resource}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record }) }); }
+export function deleteRemote(resource: string, id: string) { void fetch(`/api/records/${resource}?id=${encodeURIComponent(id)}`, { method: "DELETE" }); }

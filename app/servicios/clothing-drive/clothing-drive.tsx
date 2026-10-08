@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../../components/sidebar";
+import { deleteRemote, loadRemote, saveRemote } from "../../lib/remote-records";
 
 type ClothingForm = { date: string; fullName: string; totalHousehold: string };
 type ClothingRecord = ClothingForm & { id: string; createdAt: string };
@@ -16,12 +17,12 @@ export default function ClothingDrive() {
   const [editing, setEditing] = useState<ClothingRecord | null>(null);
   const [form, setForm] = useState<ClothingForm>(initialForm);
 
-  useEffect(() => { try { setRecords(JSON.parse(window.localStorage.getItem(storageKey) || "[]")); } catch { setRecords([]); } }, []);
+  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]") as ClothingRecord[]; loadRemote<ClothingRecord>("clothing", local).then((records) => { if (active) { setRecords(records); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setRecords([]); } return () => { active = false; }; }, []);
   function persist(next: ClothingRecord[]) { setRecords(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
   function openNew() { setEditing(null); setForm({ ...initialForm, date: new Date().toISOString().slice(0, 10) }); setIsOpen(true); }
   function openEdit(record: ClothingRecord) { setEditing(record); setForm({ date: record.date, fullName: record.fullName, totalHousehold: record.totalHousehold }); setIsOpen(true); }
-  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (editing) persist(records.map((record) => record.id === editing.id ? { ...record, ...form } : record)); else persist([{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form }, ...records]); setIsOpen(false); }
-  function remove(record: ClothingRecord) { if (window.confirm(`¿Eliminar el registro de ${record.fullName}?`)) persist(records.filter((item) => item.id !== record.id)); }
+  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form }; persist(editing ? records.map((item) => item.id === editing.id ? record : item) : [record, ...records]); saveRemote("clothing", record); setIsOpen(false); }
+  function remove(record: ClothingRecord) { if (window.confirm(`¿Eliminar el registro de ${record.fullName}?`)) { persist(records.filter((item) => item.id !== record.id)); deleteRemote("clothing", record.id); } }
   const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? records.filter((record) => [record.date, record.fullName].some((value) => value.toLowerCase().includes(text))) : records; }, [records, search]);
 
   return <main className="app-shell clients-page"><Sidebar active="servicios" /><section className="clients-content">

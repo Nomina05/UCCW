@@ -24,16 +24,17 @@ export async function login(formData: FormData) {
       body: JSON.stringify({ email, password }),
       cache: "no-store"
     });
-    const result = await response.json().catch(() => null) as { user?: { id?: string } } | null;
+    const result = await response.json().catch(() => null) as { access_token?: string; user?: { id?: string } } | null;
     if (!response.ok || !result?.user?.id) redirect("/login?error=1");
     userId = result.user.id;
+    var accessToken = result.access_token;
   } else {
     const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() || demoEmail;
     const configuredPassword = process.env.ADMIN_PASSWORD || demoPassword;
     if (email !== configuredEmail || password !== configuredPassword) redirect("/login?error=1");
   }
 
-  const token = await new SignJWT({ email, userId, provider: userId ? "supabase" : "demo" })
+  const token = await new SignJWT({ email, userId, accessToken, provider: userId ? "supabase" : "demo" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("8h")

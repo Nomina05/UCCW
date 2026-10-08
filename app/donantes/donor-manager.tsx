@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
+import { deleteRemote, loadRemote, saveRemote } from "../lib/remote-records";
 
 type DonorForm = { donorId: string; firstName: string; lastName: string; address: string; city: string; state: string; zip: string; phone: string; email: string; date: string; amount: string; otherDonations: string; notes: string; };
 type Donor = DonorForm & { id: string; createdAt: string };
@@ -17,13 +18,13 @@ function nextId(donors: Donor[]) { const highest = donors.reduce((max, donor) =>
 
 export default function DonorManager() {
   const [donors, setDonors] = useState<Donor[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Donor | null>(null); const [form, setForm] = useState<DonorForm>(initialForm);
-  useEffect(() => { try { setDonors(JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize)); } catch { setDonors([]); } }, []);
+  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Donor>("donors", local).then((records) => { if (active) { setDonors(records.map(normalize)); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setDonors([]); } return () => { active = false; }; }, []);
   function persist(next: Donor[]) { setDonors(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
   function update<K extends keyof DonorForm>(key: K, value: DonorForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(donor: Donor) { setEditing(donor); setForm({ ...donor }); setIsFormOpen(true); }
-  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (editing) persist(donors.map((donor) => donor.id === editing.id ? { ...donor, ...form } : donor)); else persist([{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, donorId: nextId(donors) }, ...donors]); setIsFormOpen(false); }
-  function remove(donor: Donor) { if (window.confirm(`¿Eliminar el donante ${donor.firstName} ${donor.lastName}?`)) persist(donors.filter((item) => item.id !== donor.id)); }
+  function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, donorId: nextId(donors) }; persist(editing ? donors.map((donor) => donor.id === editing.id ? record : donor) : [record, ...donors]); saveRemote("donors", record); setIsFormOpen(false); }
+  function remove(donor: Donor) { if (window.confirm(`¿Eliminar el donante ${donor.firstName} ${donor.lastName}?`)) { persist(donors.filter((item) => item.id !== donor.id)); deleteRemote("donors", donor.id); } }
   const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? donors.filter((donor) => [donor.donorId, donor.firstName, donor.lastName, donor.city, donor.phone, donor.email].some((value) => value.toLowerCase().includes(text))) : donors; }, [donors, search]);
   return <main className="app-shell clients-page"><Sidebar active="donantes" /><section className="clients-content">
     <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Donantes</h1><p>Registra y consulta las contribuciones recibidas.</p></div><button onClick={openNew}>+ Nuevo donante</button></div>
