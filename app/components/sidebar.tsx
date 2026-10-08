@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-type Section = "inicio" | "clientes" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes";
+type Section = "inicio" | "clientes" | "casos" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes";
 
 const links: { id: Section; href: string; label: string; icon: string }[] = [
   { id: "inicio", href: "/dashboard", label: "Inicio", icon: "⌂" },
   { id: "clientes", href: "/clientes", label: "Clientes", icon: "◉" },
+  { id: "casos", href: "/casos", label: "Control de casos", icon: "◫" },
   { id: "donantes", href: "/donantes", label: "Donantes", icon: "♥" },
   { id: "voluntarios", href: "/voluntarios", label: "Voluntarios", icon: "♧" },
   { id: "servicios", href: "/servicios", label: "Servicios", icon: "▣" },
