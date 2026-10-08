@@ -31,8 +31,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const { record } = await request.json() as { record?: StoredRecord }; if (!record?.id) return NextResponse.json({ error: "Registro inválido" }, { status: 400 });
-  const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?on_conflict=id`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "resolution=merge-duplicates,return=minimal" }), body: JSON.stringify(current.resource.row(record)) });
+  const payload = await request.json() as { record?: StoredRecord; records?: StoredRecord[] }; const records = payload.records || (payload.record ? [payload.record] : []);
+  if (!records.length || records.length > 250 || records.some((record) => !record.id)) return NextResponse.json({ error: "Registro inválido" }, { status: 400 });
+  const conflict = records.length > 1 && name === "clients" ? "client_number" : "id";
+  const body = records.length === 1 ? current.resource.row(records[0]) : records.map((record) => current.resource.row(record));
+  const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?on_conflict=${conflict}`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "resolution=merge-duplicates,return=minimal" }), body: JSON.stringify(body) });
   if (!response.ok) return NextResponse.json({ error: "No fue posible guardar el registro" }, { status: response.status });
   return NextResponse.json({ ok: true });
 }
