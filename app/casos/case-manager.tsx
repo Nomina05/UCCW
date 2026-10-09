@@ -14,8 +14,8 @@ function nextNumber(records: CaseRecord[]) { const highest = records.reduce((max
 
 export default function CaseManager() {
   const [cases, setCases] = useState<CaseRecord[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<CaseRecord | null>(null); const [form, setForm] = useState<CaseForm>(initialForm);
-  useEffect(() => { let active = true; let fallback: CaseRecord[] = []; try { fallback = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); } catch { /* Use an empty local fallback. */ } loadRemote<CaseRecord>("cases", fallback).then((records) => { if (active) { const normalized = records.map(normalize); setCases(normalized); window.localStorage.setItem(storageKey, JSON.stringify(normalized)); } }); return () => { active = false; }; }, []);
-  function persist(records: CaseRecord[]) { setCases(records); window.localStorage.setItem(storageKey, JSON.stringify(records)); }
+  useEffect(() => { let active = true; loadRemote<CaseRecord>("cases").then((records) => { if (active) setCases(records.map(normalize)); }); return () => { active = false; }; }, []);
+  function persist(records: CaseRecord[]) { setCases(records); }
   function update<K extends keyof CaseForm>(key: K, value: CaseForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(record: CaseRecord) { setEditing(record); setForm({ ...record }); setIsFormOpen(true); }
