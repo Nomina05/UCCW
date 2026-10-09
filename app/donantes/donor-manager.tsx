@@ -18,8 +18,8 @@ function nextId(donors: Donor[]) { const highest = donors.reduce((max, donor) =>
 
 export default function DonorManager() {
   const [donors, setDonors] = useState<Donor[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Donor | null>(null); const [form, setForm] = useState<DonorForm>(initialForm);
-  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Donor>("donors", local).then((records) => { if (active) { setDonors(records.map(normalize)); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setDonors([]); } return () => { active = false; }; }, []);
-  function persist(next: Donor[]) { setDonors(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
+  useEffect(() => { let active = true; loadRemote<Donor>("donors").then((records) => { if (active) setDonors(records.map(normalize)); }); return () => { active = false; }; }, []);
+  function persist(next: Donor[]) { setDonors(next); }
   function update<K extends keyof DonorForm>(key: K, value: DonorForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(donor: Donor) { setEditing(donor); setForm({ ...donor }); setIsFormOpen(true); }
