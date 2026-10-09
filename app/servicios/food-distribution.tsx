@@ -13,8 +13,8 @@ const total = (record: DistributionForm) => [record.children, record.adults, rec
 
 export default function FoodDistribution() {
   const [records, setRecords] = useState<Distribution[]>([]); const [search, setSearch] = useState(""); const [isOpen, setIsOpen] = useState(false); const [editing, setEditing] = useState<Distribution | null>(null); const [form, setForm] = useState<DistributionForm>(initialForm);
-  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]") as Distribution[]; loadRemote<Distribution>("food", local).then((records) => { if (active) { setRecords(records); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setRecords([]); } return () => { active = false; }; }, []);
-  function persist(next: Distribution[]) { setRecords(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
+  useEffect(() => { let active = true; loadRemote<Distribution>("food").then((records) => { if (active) setRecords(records); }); return () => { active = false; }; }, []);
+  function persist(next: Distribution[]) { setRecords(next); }
   function update<K extends keyof DistributionForm>(key: K, value: DistributionForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditing(null); setForm({ ...initialForm, date: new Date().toISOString().slice(0, 10) }); setIsOpen(true); }
   function openEdit(record: Distribution) { setEditing(record); setForm({ date: record.date, fullName: record.fullName, address: record.address, children: record.children, adults: record.adults, seniors: record.seniors }); setIsOpen(true); }
