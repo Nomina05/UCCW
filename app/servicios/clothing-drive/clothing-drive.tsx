@@ -17,8 +17,8 @@ export default function ClothingDrive() {
   const [editing, setEditing] = useState<ClothingRecord | null>(null);
   const [form, setForm] = useState<ClothingForm>(initialForm);
 
-  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]") as ClothingRecord[]; loadRemote<ClothingRecord>("clothing", local).then((records) => { if (active) { setRecords(records); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setRecords([]); } return () => { active = false; }; }, []);
-  function persist(next: ClothingRecord[]) { setRecords(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
+  useEffect(() => { let active = true; loadRemote<ClothingRecord>("clothing").then((records) => { if (active) setRecords(records); }); return () => { active = false; }; }, []);
+  function persist(next: ClothingRecord[]) { setRecords(next); }
   function openNew() { setEditing(null); setForm({ ...initialForm, date: new Date().toISOString().slice(0, 10) }); setIsOpen(true); }
   function openEdit(record: ClothingRecord) { setEditing(record); setForm({ date: record.date, fullName: record.fullName, totalHousehold: record.totalHousehold }); setIsOpen(true); }
   function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form }; persist(editing ? records.map((item) => item.id === editing.id ? record : item) : [record, ...records]); saveRemote("clothing", record); setIsOpen(false); }
