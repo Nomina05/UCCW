@@ -14,8 +14,8 @@ function nextId(volunteers: Volunteer[]) { const highest = volunteers.reduce((ma
 
 export default function VolunteerManager() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Volunteer | null>(null); const [form, setForm] = useState<VolunteerForm>(initialForm);
-  useEffect(() => { let active = true; try { const local = JSON.parse(window.localStorage.getItem(storageKey) || "[]").map(normalize); loadRemote<Volunteer>("volunteers", local).then((records) => { if (active) { setVolunteers(records.map(normalize)); window.localStorage.setItem(storageKey, JSON.stringify(records)); } }); } catch { setVolunteers([]); } return () => { active = false; }; }, []);
-  function persist(next: Volunteer[]) { setVolunteers(next); window.localStorage.setItem(storageKey, JSON.stringify(next)); }
+  useEffect(() => { let active = true; loadRemote<Volunteer>("volunteers").then((records) => { if (active) setVolunteers(records.map(normalize)); }); return () => { active = false; }; }, []);
+  function persist(next: Volunteer[]) { setVolunteers(next); }
   function update<K extends keyof VolunteerForm>(key: K, value: VolunteerForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(volunteer: Volunteer) { setEditing(volunteer); setForm({ ...volunteer }); setIsFormOpen(true); }
