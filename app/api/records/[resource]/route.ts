@@ -39,26 +39,31 @@ function headers(key: string, accessToken: string, extra: Record<string, string>
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const requestUrl = new URL(request.url); const search = requestUrl.searchParams.get("q")?.trim().slice(0, 120) || ""; const pageNumber = Math.max(Number(requestUrl.searchParams.get("page")) || 1, 1); const envelope = name === "clients" && requestUrl.searchParams.has("page");
   const filter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : "";
   // Cada respuesta se mantiene acotada. Los clientes grandes se leen por páginas
   // desde el navegador para no superar el tiempo/límite de tamaño de una función.
-  const requestedLimit = Number(new URL(request.url).searchParams.get("limit"));
-  const requestedOffset = Number(new URL(request.url).searchParams.get("offset"));
+  const requestedLimit = Number(requestUrl.searchParams.get("limit"));
+  const requestedOffset = envelope ? (pageNumber - 1) * requestedLimit : Number(requestUrl.searchParams.get("offset"));
   const pageSize = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 1000) : 1000;
   const startOffset = Number.isFinite(requestedOffset) ? Math.max(Math.floor(requestedOffset), 0) : 0;
-  const pagedRequest = new URL(request.url).searchParams.has("limit") || new URL(request.url).searchParams.has("offset");
+  const pagedRequest = requestUrl.searchParams.has("limit") || requestUrl.searchParams.has("offset") || envelope;
   const rows: { data?: StoredRecord; id: string; created_at: string; client_number?: string }[] = [];
+  let total = 0;
 
   for (let offset = startOffset; offset < 50000; offset += pageSize) {
     const clientSelect = name === "clients" ? ",client_number" : "";
-    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}${filter}`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
-    if (!response.ok) return NextResponse.json({ error: "No fue posible leer los registros" }, { status: response.status });
+    const searchFilter = name === "clients" && search ? `&or=(${encodeURIComponent(`full_name.ilike.*${search}*,client_number.ilike.*${search}*,data->>city.ilike.*${search}*,data->>email.ilike.*${search}*,data->>phone.ilike.*${search}*,data->>last4Ssn.ilike.*${search}*`)})` : "";
+    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}${filter}${searchFilter}`, { headers: headers(current.key, current.accessToken, envelope ? { Prefer: "count=exact" } : {}), cache: "no-store" });
+    if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "No fue posible leer los registros" }, { status: response.status }); }
+    if (envelope) total = Number(response.headers.get("content-range")?.split("/")[1]) || 0;
     const page = await response.json() as { data?: StoredRecord; id: string; created_at: string }[];
     rows.push(...page);
     if (pagedRequest || page.length < pageSize) break;
   }
 
-  return NextResponse.json(rows.map((row) => ({ ...row.data, id: row.data?.id || row.id, clientId: name === "clients" ? row.client_number || row.data?.clientId : row.data?.clientId, createdAt: row.data?.createdAt || row.created_at })));
+  const records = rows.map((row) => ({ ...row.data, id: row.data?.id || row.id, clientId: name === "clients" ? row.client_number || row.data?.clientId : row.data?.clientId, createdAt: row.data?.createdAt || row.created_at }));
+  return NextResponse.json(envelope ? { records, total } : records);
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
