@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { LanguageProvider } from "./components/language-provider";
+import SessionTimeout from "./components/session-timeout";
 
 export const metadata: Metadata = {
   title: "UCCW | Case Management System",
@@ -8,6 +9,6 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><LanguageProvider>{children}</LanguageProvider></body></html>;
+  return <html lang="en"><body><LanguageProvider><SessionTimeout />{children}</LanguageProvider></body></html>;
 }
 
