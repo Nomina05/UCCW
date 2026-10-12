@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { LanguageProvider } from "./components/language-provider";
 
 export const metadata: Metadata = {
-  title: "UCCW | Registro de Casos",
-  description: "Sistema de registro y seguimiento de casos"
+  title: "UCCW | Case Management System",
+  description: "Case management and service tracking system"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body>{children}</body></html>;
+  return <html lang="en"><body><LanguageProvider>{children}</LanguageProvider></body></html>;
 }
+
