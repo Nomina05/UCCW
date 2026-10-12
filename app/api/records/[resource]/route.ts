@@ -1,7 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 
-type Resource = "clients" | "cases" | "donors" | "volunteers" | "food" | "clothing" | "users";
+type Resource = "clients" | "client-services" | "cases" | "donors" | "volunteers" | "food" | "clothing" | "users";
 type StoredRecord = Record<string, unknown> & { id?: string; clientId?: string; donorId?: string; volunteerId?: string; fullName?: string; firstName?: string; lastName?: string; date?: string; address?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string; createdAt?: string };
 
 function hasContent(value: unknown) { return typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null; }
@@ -21,6 +21,7 @@ function mergeClientRecord(existing: StoredRecord, incoming: StoredRecord) {
 
 const resources: Record<Resource, { table: string; serviceType?: string; row: (record: StoredRecord) => Record<string, unknown> }> = {
   clients: { table: "clients", row: (record) => ({ id: record.id, client_number: record.clientId, full_name: record.fullName, service_date: record.serviceDate || null, data: record }) },
+  "client-services": { table: "client_services", row: (record) => ({ id: record.id, client_id: record.clientId, client_name: record.clientName, service_category: record.serviceCategory, subservice: record.subservice || null, service_status: record.status || "Requested", assigned_to: record.assignedTo || null, follow_up_date: record.followUpDate || null, comments: record.comments || null, data: record }) },
   cases: { table: "case_control", row: (record) => ({ id: record.id, case_number: record.caseNumber, client_name: record.clientName || null, case_status: record.status || "Abierto", assigned_to: record.assignedTo || null, follow_up_date: record.followUpDate || null, data: record }) },
   users: { table: "user_records", row: (record) => ({ id: record.id, email: record.email, profile: record.profile || null, active: record.active === "Yes", data: record }) },
   donors: { table: "donors", row: (record) => ({ id: record.id, donor_number: record.donorId, first_name: record.firstName, last_name: record.lastName, donation_date: record.date || null, amount: record.amount || null, data: record }) },
@@ -40,7 +41,7 @@ function headers(key: string, accessToken: string, extra: Record<string, string>
 export async function GET(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const requestUrl = new URL(request.url); const search = requestUrl.searchParams.get("q")?.trim().slice(0, 120) || ""; const pageNumber = Math.max(Number(requestUrl.searchParams.get("page")) || 1, 1); const envelope = name === "clients" && requestUrl.searchParams.has("page");
-  const filter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : "";
+  const clientId = requestUrl.searchParams.get("clientId")?.trim() || ""; const filter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : name === "client-services" && clientId ? `&client_id=eq.${encodeURIComponent(clientId)}` : "";
   // Cada respuesta se mantiene acotada. Los clientes grandes se leen por páginas
   // desde el navegador para no superar el tiempo/límite de tamaño de una función.
   const requestedLimit = Number(requestUrl.searchParams.get("limit"));
