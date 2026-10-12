@@ -46,3 +46,4 @@ export default function ReportsDashboard() {
     <p className="storage-note">Última actualización: {updatedAt || "Cargando…"}. Los gráficos se calculan con la información sincronizada desde Supabase.</p>
   </section></main>;
 }
+
