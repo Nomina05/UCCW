@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (!(file instanceof File) || !allowedModules.has(module) || !/^[a-f0-9-]{20,}$/i.test(recordId) || file.size > 10 * 1024 * 1024) return NextResponse.json({ error: "Archivo no válido o supera el límite de 10 MB" }, { status: 400 });
   const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "archivo"; const path = `${module}/${recordId}/${crypto.randomUUID()}-${fileName}`;
   const response = await fetch(`${current.url}/storage/v1/object/${bucket}/${path}`, { method: "POST", headers: headers(current.key, current.accessToken, file.type || "application/octet-stream"), body: file });
-  if (!response.ok) return NextResponse.json({ error: "No fue posible guardar el archivo. Verifique que la migración de Storage esté aplicada." }, { status: response.status });
+  if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string; error?: string } | null; const reason = detail?.message || detail?.error; const message = response.status === 401 ? "La sesión de Supabase venció. Cierre sesión e ingrese nuevamente." : response.status === 403 ? "Supabase rechazó la carga. Verifique las políticas INSERT del bucket uccw-files." : response.status === 404 ? "El bucket uccw-files no existe en este proyecto de Supabase." : response.status === 413 ? "El archivo supera el límite permitido de 10 MB." : reason || `Supabase Storage respondió con el error ${response.status}.`; return NextResponse.json({ error: message }, { status: response.status }); }
   return NextResponse.json({ path });
 }
 
@@ -28,3 +28,4 @@ export async function GET(request: NextRequest) {
   if (!response.ok || !response.body) return NextResponse.json({ error: "Archivo no encontrado" }, { status: response.status || 404 });
   return new NextResponse(response.body, { headers: { "Content-Type": response.headers.get("Content-Type") || "application/octet-stream", "Content-Disposition": response.headers.get("Content-Disposition") || "inline", "Cache-Control": "private, max-age=300" } });
 }
+
