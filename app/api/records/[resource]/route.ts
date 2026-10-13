@@ -1,7 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
-import { can, Module, normalizeRole } from "../../../../lib/security";
-import { resolveProfileRole } from "../../../../lib/profile-role";
+import { can, Module, normalizePermissions, normalizeRole } from "../../../../lib/security";
+import { resolveProfileAccess } from "../../../../lib/profile-role";
 import { incompleteFields, normalizeDataRecord, requiredFields, validateDataRecord } from "../../../../lib/data-quality";
 
 type Resource = "clients" | "client-services" | "cases" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "settings";
@@ -39,14 +39,14 @@ function resourceFrom(value: string): Resource | null { return Object.prototype.
 async function context(request: NextRequest, resourceName: string) {
   const resource = resourceFrom(resourceName); const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_ANON_KEY; const token = request.cookies.get("uccw_session")?.value;
   if (!resource || !url || !key || !token) return null;
-  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, role: await resolveProfileRole(verified.payload), actor: { email, userId } }; } catch { return null; }
+  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; const access = await resolveProfileAccess(verified.payload); return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, ...access, actor: { email, userId } }; } catch { return null; }
 }
 function headers(key: string, accessToken: string, extra: Record<string, string> = {}) { return { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", ...extra }; }
 async function audit(current: NonNullable<Awaited<ReturnType<typeof context>>>, action: string, resource: string, recordId?: string, details: Record<string, unknown> = {}) { const data = { id: crypto.randomUUID(), action, module: current.resource.module, resource, recordId, actor: current.actor.email, actorUserId: current.actor.userId, role: current.role, details, createdAt: new Date().toISOString() }; await fetch(`${current.url}/rest/v1/audit_logs`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ id: data.id, action, module: current.resource.module, resource, record_id: recordId || null, actor_email: current.actor.email, actor_user_id: current.actor.userId || null, data }) }).catch(() => null); }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (!can(current.role, current.resource.module, "read")) return NextResponse.json({ error: "Su rol no tiene permiso para consultar este módulo." }, { status: 403 });
+  if (!can(current.role, current.resource.module, "read", current.permissions)) return NextResponse.json({ error: "Su usuario no tiene permiso para consultar este módulo." }, { status: 403 });
   const requestUrl = new URL(request.url); const search = requestUrl.searchParams.get("q")?.trim().slice(0, 120) || ""; const pageNumber = Math.max(Number(requestUrl.searchParams.get("page")) || 1, 1); const envelope = name === "clients" && requestUrl.searchParams.has("page");
   const clientId = requestUrl.searchParams.get("clientId")?.trim() || ""; const deleted = requestUrl.searchParams.get("deleted") === "only"; if (deleted && !["Administrator", "Supervisor"].includes(current.role)) return NextResponse.json({ error: "No autorizado para consultar la papelera." }, { status: 403 }); const deletedFilter = name === "audit" ? "" : deleted ? "&deleted_at=not.is.null" : "&deleted_at=is.null"; const resourceFilter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : name === "client-services" && clientId ? `&client_id=eq.${encodeURIComponent(clientId)}` : ""; const filter = `${resourceFilter}${deletedFilter}`;
   // Cada respuesta se mantiene acotada. Los clientes grandes se leen por páginas
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (name === "audit" || !can(current.role, current.resource.module, "write")) return NextResponse.json({ error: "Su rol no tiene permiso para modificar este módulo." }, { status: 403 });
+  if (name === "audit" || !can(current.role, current.resource.module, "write", current.permissions)) return NextResponse.json({ error: "Su usuario no tiene permiso para modificar este módulo." }, { status: 403 });
   const payload = await request.json() as { record?: StoredRecord; records?: StoredRecord[]; skipExisting?: boolean; mergeExisting?: boolean }; let records = payload.records || (payload.record ? [payload.record] : []);
   if (!records.length || records.length > 250 || records.some((record) => !record.id)) return NextResponse.json({ error: "Registro inválido" }, { status: 400 });
   if (payload.mergeExisting && name === "clients") {
@@ -104,13 +104,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let existed = false; if (records.length === 1) { const check = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id&id=eq.${encodeURIComponent(String(records[0].id))}&limit=1`, { headers: headers(current.key, current.accessToken), cache: "no-store" }); if (check.ok) existed = ((await check.json() as unknown[]).length > 0); }
   const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?on_conflict=${conflict}`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: preference }), body: JSON.stringify(body) });
   if (!response.ok) { const detail = await response.json().catch(() => null) as { code?: string; message?: string } | null; const duplicate = detail?.code === "23505" || detail?.message?.toLowerCase().includes("duplicate"); return NextResponse.json({ error: duplicate ? "El identificador ya existe. No se permiten IDs duplicados." : detail?.message || "No fue posible guardar el registro" }, { status: duplicate ? 409 : response.status }); }
+  if (name === "users") {
+    for (const record of records) {
+      const email = String(record.email || "").trim().toLowerCase(); if (!email) continue;
+      const profileResponse = await fetch(`${current.url}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, { method: "PATCH", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ profile: normalizeRole(record.profile), permissions: normalizePermissions(record.permissions), active: record.active === "Yes", updated_at: auditedAt }) });
+      if (!profileResponse.ok) { const detail = await profileResponse.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "El usuario se guardó, pero no fue posible actualizar sus permisos de acceso." }, { status: profileResponse.status }); }
+    }
+  }
   await audit(current, payload.records ? "import" : existed ? "update" : "create", name, records.length === 1 ? String(records[0].id) : undefined, { count: records.length });
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); const id = new URL(request.url).searchParams.get("id"); if (!current || !id) return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
-  if (name === "audit" || !can(current.role, current.resource.module, "delete")) return NextResponse.json({ error: "Su rol no tiene permiso para eliminar registros." }, { status: 403 });
+  if (name === "audit" || !can(current.role, current.resource.module, "delete", current.permissions)) return NextResponse.json({ error: "Su usuario no tiene permiso para eliminar registros." }, { status: 403 });
   const deletedAt = new Date().toISOString(); const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ deleted_at: deletedAt, deleted_by: current.actor.email }) });
   if (!response.ok) return NextResponse.json({ error: "No fue posible eliminar el registro" }, { status: response.status });
   await audit(current, "delete", name, id, { recoverable: true, deletedAt });

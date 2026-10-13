@@ -10,6 +10,7 @@ alter table public.clients add column if not exists deleted_at timestamptz;
 alter table public.clients add column if not exists deleted_by text;
 alter table public.profiles add column if not exists deleted_at timestamptz;
 alter table public.profiles add column if not exists deleted_by text;
+alter table public.profiles add column if not exists permissions jsonb;
 alter table public.donors add column if not exists deleted_at timestamptz;
 alter table public.donors add column if not exists deleted_by text;
 alter table public.volunteers add column if not exists deleted_at timestamptz;

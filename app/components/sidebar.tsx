@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher, useLanguage } from "./language-provider";
-import { can, Module, Role } from "../../lib/security";
+import { can, Module, ModulePermissions, Role } from "../../lib/security";
 
 type Section = "inicio" | "clientes" | "casos" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion";
 
@@ -23,12 +23,12 @@ const links: { id: Section; module: Module; href: string; en: string; es: string
 ];
 
 export default function Sidebar({ active }: { active: Section }) {
-  const { language } = useLanguage(); const [role, setRole] = useState<Role>("Read Only");
-  useEffect(() => { fetch("/api/session", { cache: "no-store" }).then((response) => response.json()).then((result) => setRole(result.role || "Read Only")).catch(() => setRole("Read Only")); }, []);
+  const { language } = useLanguage(); const [access, setAccess] = useState<{ role: Role; permissions: ModulePermissions | null }>({ role: "Read Only", permissions: null });
+  useEffect(() => { fetch("/api/session", { cache: "no-store" }).then((response) => response.json()).then((result) => setAccess({ role: result.role || "Read Only", permissions: result.permissions || null })).catch(() => setAccess({ role: "Read Only", permissions: null })); }, []);
   return <aside className="sidebar">
     <div className="sidebar-top"><Link className="sidebar-brand" href="/dashboard"><span>U</span><strong>UCCW</strong></Link><LanguageSwitcher /></div>
     <p className="sidebar-caption">{language === "en" ? "SYSTEM MANAGEMENT" : "GESTIÓN DEL SISTEMA"}</p>
-    <nav>{links.filter((link) => can(role, link.module, "read")).map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
+    <nav>{links.filter((link) => can(access.role, link.module, "read", access.permissions)).map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
     <p className="sidebar-footer">{language === "en" ? "Case management system" : "Sistema de registro de casos"}</p>
   </aside>;
 }
