@@ -1,30 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { LanguageSwitcher, useLanguage } from "./language-provider";
+import { can, Module, Role } from "../../lib/security";
 
 type Section = "inicio" | "clientes" | "casos" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda";
 
-const links: { id: Section; href: string; en: string; es: string; icon: string }[] = [
-  { id: "inicio", href: "/dashboard", en: "Home", es: "Inicio", icon: "⌂" },
-  { id: "clientes", href: "/clientes", en: "Clients", es: "Clientes", icon: "◉" },
-  { id: "busqueda", href: "/busqueda", en: "Advanced Search", es: "Búsqueda avanzada", icon: "⌕" },
-  { id: "casos", href: "/casos", en: "Case Management", es: "Control de casos", icon: "◫" },
-  { id: "donantes", href: "/donantes", en: "Donors", es: "Donantes", icon: "♥" },
-  { id: "voluntarios", href: "/voluntarios", en: "Volunteers", es: "Voluntarios", icon: "♧" },
-  { id: "servicios", href: "/servicios", en: "Services", es: "Servicios", icon: "▣" },
-  { id: "usuarios", href: "/usuarios", en: "Users", es: "Usuarios", icon: "♙" },
-  { id: "reportes", href: "/reportes", en: "Reports", es: "Reportes", icon: "▦" },
-  { id: "auditoria", href: "/auditoria", en: "Audit", es: "Auditoría", icon: "◷" },
-  { id: "respaldo", href: "/respaldo", en: "Backup", es: "Respaldo", icon: "⇅" }
+const links: { id: Section; module: Module; href: string; en: string; es: string; icon: string }[] = [
+  { id: "inicio", module: "dashboard", href: "/dashboard", en: "Home", es: "Inicio", icon: "⌂" },
+  { id: "clientes", module: "clients", href: "/clientes", en: "Clients", es: "Clientes", icon: "◉" },
+  { id: "busqueda", module: "clients", href: "/busqueda", en: "Advanced Search", es: "Búsqueda avanzada", icon: "⌕" },
+  { id: "casos", module: "cases", href: "/casos", en: "Case Management", es: "Control de casos", icon: "◫" },
+  { id: "donantes", module: "donors", href: "/donantes", en: "Donors", es: "Donantes", icon: "♥" },
+  { id: "voluntarios", module: "volunteers", href: "/voluntarios", en: "Volunteers", es: "Voluntarios", icon: "♧" },
+  { id: "servicios", module: "services", href: "/servicios", en: "Services", es: "Servicios", icon: "▣" },
+  { id: "usuarios", module: "users", href: "/usuarios", en: "Users", es: "Usuarios", icon: "♙" },
+  { id: "reportes", module: "reports", href: "/reportes", en: "Reports", es: "Reportes", icon: "▦" },
+  { id: "auditoria", module: "audit", href: "/auditoria", en: "Audit", es: "Auditoría", icon: "◷" },
+  { id: "respaldo", module: "backup", href: "/respaldo", en: "Backup", es: "Respaldo", icon: "⇅" }
 ];
 
 export default function Sidebar({ active }: { active: Section }) {
-  const { language } = useLanguage();
+  const { language } = useLanguage(); const [role, setRole] = useState<Role>("Read Only");
+  useEffect(() => { fetch("/api/session", { cache: "no-store" }).then((response) => response.json()).then((result) => setRole(result.role || "Read Only")).catch(() => setRole("Read Only")); }, []);
   return <aside className="sidebar">
     <div className="sidebar-top"><Link className="sidebar-brand" href="/dashboard"><span>U</span><strong>UCCW</strong></Link><LanguageSwitcher /></div>
     <p className="sidebar-caption">{language === "en" ? "SYSTEM MANAGEMENT" : "GESTIÓN DEL SISTEMA"}</p>
-    <nav>{links.map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
+    <nav>{links.filter((link) => can(role, link.module, "read")).map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
     <p className="sidebar-footer">{language === "en" ? "Case management system" : "Sistema de registro de casos"}</p>
   </aside>;
 }
