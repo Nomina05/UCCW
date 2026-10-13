@@ -3,6 +3,7 @@
 import { SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { normalizeRole } from "../../lib/security";
 
 const encoder = new TextEncoder();
 const demoEmail = "demo@uccw.local";
@@ -16,6 +17,7 @@ export async function login(formData: FormData) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
   let userId: string | undefined;
+  let role = "Administrator";
 
   if (supabaseUrl && supabaseAnonKey) {
     const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
@@ -28,13 +30,16 @@ export async function login(formData: FormData) {
     if (!response.ok || !result?.user?.id) redirect("/login?error=1");
     userId = result.user.id;
     var accessToken = result.access_token;
+    const profileResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/profiles?select=profile&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+    const profiles = profileResponse.ok ? await profileResponse.json() as { profile?: string }[] : [];
+    role = normalizeRole(profiles[0]?.profile);
   } else {
     const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() || demoEmail;
     const configuredPassword = process.env.ADMIN_PASSWORD || demoPassword;
     if (email !== configuredEmail || password !== configuredPassword) redirect("/login?error=1");
   }
 
-  const token = await new SignJWT({ email, userId, accessToken, provider: userId ? "supabase" : "demo" })
+  const token = await new SignJWT({ email, userId, accessToken, role, provider: userId ? "supabase" : "demo" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("8h")

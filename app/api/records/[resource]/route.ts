@@ -1,6 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 import { can, Module, normalizeRole } from "../../../../lib/security";
+import { resolveProfileRole } from "../../../../lib/profile-role";
 import { incompleteFields, normalizeDataRecord, requiredFields, validateDataRecord } from "../../../../lib/data-quality";
 
 type Resource = "clients" | "client-services" | "cases" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "settings";
@@ -38,7 +39,7 @@ function resourceFrom(value: string): Resource | null { return Object.prototype.
 async function context(request: NextRequest, resourceName: string) {
   const resource = resourceFrom(resourceName); const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_ANON_KEY; const token = request.cookies.get("uccw_session")?.value;
   if (!resource || !url || !key || !token) return null;
-  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, role: normalizeRole(verified.payload.role), actor: { email, userId } }; } catch { return null; }
+  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, role: await resolveProfileRole(verified.payload), actor: { email, userId } }; } catch { return null; }
 }
 function headers(key: string, accessToken: string, extra: Record<string, string> = {}) { return { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", ...extra }; }
 async function audit(current: NonNullable<Awaited<ReturnType<typeof context>>>, action: string, resource: string, recordId?: string, details: Record<string, unknown> = {}) { const data = { id: crypto.randomUUID(), action, module: current.resource.module, resource, recordId, actor: current.actor.email, actorUserId: current.actor.userId, role: current.role, details, createdAt: new Date().toISOString() }; await fetch(`${current.url}/rest/v1/audit_logs`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ id: data.id, action, module: current.resource.module, resource, record_id: recordId || null, actor_email: current.actor.email, actor_user_id: current.actor.userId || null, data }) }).catch(() => null); }

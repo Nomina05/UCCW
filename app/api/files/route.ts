@@ -1,6 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 import { can, normalizeRole } from "../../../lib/security";
+import { resolveProfileRole } from "../../../lib/profile-role";
 
 const bucket = "uccw-files";
 const allowedModules = new Set(["clients", "settings"]);
@@ -9,7 +10,7 @@ const safePath = (value: string) => value && !value.includes("..") && /^[a-zA-Z0
 async function session(request: NextRequest) {
   const token = request.cookies.get("uccw_session")?.value; const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_ANON_KEY;
   if (!token || !url || !key) return null;
-  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; return typeof accessToken === "string" ? { url: url.replace(/\/$/, ""), key, accessToken, role: normalizeRole(verified.payload.role), email: String(verified.payload.email || "Unknown user"), userId: typeof verified.payload.userId === "string" ? verified.payload.userId : null } : null; } catch { return null; }
+  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; return typeof accessToken === "string" ? { url: url.replace(/\/$/, ""), key, accessToken, role: await resolveProfileRole(verified.payload), email: String(verified.payload.email || "Unknown user"), userId: typeof verified.payload.userId === "string" ? verified.payload.userId : null } : null; } catch { return null; }
 }
 function headers(key: string, accessToken: string, contentType?: string) { return { apikey: key, Authorization: `Bearer ${accessToken}`, ...(contentType ? { "Content-Type": contentType } : {}) }; }
 async function logDownload(current: NonNullable<Awaited<ReturnType<typeof session>>>, path: string) { const module = path.startsWith("settings/") ? "configuration" : "clients"; const data = { id: crypto.randomUUID(), action: "download", module, resource: "files", recordId: path.split("/")[1] || null, actor: current.email, actorUserId: current.userId, role: current.role, details: { path }, createdAt: new Date().toISOString() }; await fetch(`${current.url}/rest/v1/audit_logs`, { method: "POST", headers: { ...headers(current.key, current.accessToken, "application/json"), Prefer: "return=minimal" }, body: JSON.stringify({ id: data.id, action: "download", module, resource: "files", record_id: data.recordId, actor_email: current.email, actor_user_id: current.userId, data }) }).catch(() => null); }
