@@ -1,16 +1,15 @@
 -- UCCW security, audit trail and recoverable deletion.
 -- Run in Supabase SQL Editor after schema.sql and client-services-migration.sql.
 
-alter table public.user_records drop constraint if exists user_records_profile_check;
-update public.user_records set profile = case when lower(coalesce(profile, '')) like '%admin%' then 'Administrator' when lower(coalesce(profile, '')) like '%super%' then 'Supervisor' when lower(coalesce(profile, '')) like '%volunteer%' or lower(coalesce(profile, '')) like '%consult%' then 'Read Only' else 'Employee' end;
-alter table public.user_records add constraint user_records_profile_check check (profile in ('Administrator', 'Supervisor', 'Employee', 'Read Only') or profile is null);
+-- Production stores application users in profiles (linked to auth.users).
+alter table public.profiles drop constraint if exists profiles_profile_check;
+update public.profiles set profile = case when lower(coalesce(profile, '')) like '%admin%' then 'Administrator' when lower(coalesce(profile, '')) like '%super%' then 'Supervisor' when lower(coalesce(profile, '')) like '%volunteer%' or lower(coalesce(profile, '')) like '%consult%' or lower(coalesce(profile, '')) like '%read%' then 'Read Only' else 'Employee' end;
+alter table public.profiles add constraint profiles_profile_check check (profile in ('Administrator', 'Supervisor', 'Employee', 'Read Only') or profile is null);
 
 alter table public.clients add column if not exists deleted_at timestamptz;
 alter table public.clients add column if not exists deleted_by text;
-alter table public.case_control add column if not exists deleted_at timestamptz;
-alter table public.case_control add column if not exists deleted_by text;
-alter table public.user_records add column if not exists deleted_at timestamptz;
-alter table public.user_records add column if not exists deleted_by text;
+alter table public.profiles add column if not exists deleted_at timestamptz;
+alter table public.profiles add column if not exists deleted_by text;
 alter table public.donors add column if not exists deleted_at timestamptz;
 alter table public.donors add column if not exists deleted_by text;
 alter table public.volunteers add column if not exists deleted_at timestamptz;
