@@ -1,10 +1,10 @@
 export type Role = "Administrator" | "Supervisor" | "Employee" | "Read Only";
 export type Action = "read" | "write" | "delete" | "download";
-export type Module = "dashboard" | "clients" | "cases" | "donors" | "volunteers" | "services" | "users" | "reports" | "audit" | "backup";
+export type Module = "dashboard" | "clients" | "cases" | "donors" | "volunteers" | "services" | "users" | "reports" | "audit" | "backup" | "configuration";
 
 const matrix: Record<Role, Partial<Record<Module, Action[]>>> = {
-  Administrator: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read", "write", "delete"], reports: ["read", "download"], audit: ["read"], backup: ["read", "write", "download"] },
-  Supervisor: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read"], reports: ["read", "download"], audit: ["read"], backup: ["read", "download"] },
+  Administrator: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read", "write", "delete"], reports: ["read", "download"], audit: ["read"], backup: ["read", "write", "download"], configuration: ["read", "write", "download"] },
+  Supervisor: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read"], reports: ["read", "download"], audit: ["read"], backup: ["read", "download"], configuration: ["read", "write", "download"] },
   Employee: { dashboard: ["read"], clients: ["read", "write", "download"], cases: ["read", "write"], donors: ["read", "write"], volunteers: ["read", "write"], services: ["read", "write"], reports: ["read", "download"] },
   "Read Only": { dashboard: ["read"], clients: ["read", "download"], cases: ["read"], donors: ["read"], volunteers: ["read"], services: ["read"], reports: ["read", "download"] }
 };

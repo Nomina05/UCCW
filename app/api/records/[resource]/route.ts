@@ -1,7 +1,9 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
+import { can, Module, normalizeRole } from "../../../../lib/security";
+import { incompleteFields, normalizeDataRecord, requiredFields, validateDataRecord } from "../../../../lib/data-quality";
 
-type Resource = "clients" | "client-services" | "cases" | "donors" | "volunteers" | "food" | "clothing" | "users";
+type Resource = "clients" | "client-services" | "cases" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "settings";
 type StoredRecord = Record<string, unknown> & { id?: string; clientId?: string; donorId?: string; volunteerId?: string; fullName?: string; firstName?: string; lastName?: string; date?: string; address?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string; createdAt?: string };
 
 function hasContent(value: unknown) { return typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null; }
@@ -19,29 +21,33 @@ function mergeClientRecord(existing: StoredRecord, incoming: StoredRecord) {
   return merged;
 }
 
-const resources: Record<Resource, { table: string; serviceType?: string; row: (record: StoredRecord) => Record<string, unknown> }> = {
-  clients: { table: "clients", row: (record) => ({ id: record.id, client_number: record.clientId, full_name: record.fullName, service_date: record.serviceDate || null, data: record }) },
-  "client-services": { table: "client_services", row: (record) => ({ id: record.id, client_id: record.clientId, client_name: record.clientName, service_category: record.serviceCategory, subservice: record.subservice || null, requested_date: record.requestedDate || null, service_status: record.status || "Requested", assigned_to: record.assignedTo || null, follow_up_date: record.followUpDate || null, completion_date: record.completionDate || null, comments: record.comments || null, documents: Array.isArray(record.documents) ? record.documents : [], data: record }) },
-  cases: { table: "case_control", row: (record) => ({ id: record.id, case_number: record.caseNumber, client_name: record.clientName || null, case_status: record.status || "Abierto", assigned_to: record.assignedTo || null, follow_up_date: record.followUpDate || null, data: record }) },
-  users: { table: "user_records", row: (record) => ({ id: record.id, email: record.email, profile: record.profile || null, active: record.active === "Yes", data: record }) },
-  donors: { table: "donors", row: (record) => ({ id: record.id, donor_number: record.donorId, first_name: record.firstName, last_name: record.lastName, donation_date: record.date || null, amount: record.amount || null, data: record }) },
-  volunteers: { table: "volunteers", row: (record) => ({ id: record.id, volunteer_number: record.volunteerId, first_name: record.firstName, last_name: record.lastName, status: record.status || "Active", volunteer_date: record.date || null, data: record }) },
-  food: { table: "service_records", serviceType: "food_distribution", row: (record) => ({ id: record.id, service_type: "food_distribution", service_date: record.date, full_name: record.fullName, address: record.address || null, children: Number(record.children) || 0, adults: Number(record.adults) || 0, seniors: Number(record.seniors) || 0, total_household: [record.children, record.adults, record.seniors].reduce((sum, value) => sum + (Number(value) || 0), 0), data: record }) },
-  clothing: { table: "service_records", serviceType: "clothing_drive", row: (record) => ({ id: record.id, service_type: "clothing_drive", service_date: record.date, full_name: record.fullName, total_household: Number(record.totalHousehold) || 0, data: record }) }
+const resources: Record<Resource, { table: string; module: Module; serviceType?: string; row: (record: StoredRecord) => Record<string, unknown> }> = {
+  clients: { table: "clients", module: "clients", row: (record) => ({ id: record.id, client_number: record.clientId, full_name: record.fullName, service_date: record.serviceDate || null, data: record }) },
+  "client-services": { table: "client_services", module: "services", row: (record) => ({ id: record.id, client_id: record.clientId, client_name: record.clientName, service_category: record.serviceCategory, subservice: record.subservice || null, requested_date: record.requestedDate || null, service_status: record.status || "Requested", assigned_to: record.assignedTo || null, follow_up_date: record.followUpDate || null, completion_date: record.completionDate || null, comments: record.comments || null, documents: Array.isArray(record.documents) ? record.documents : [], data: record }) },
+  cases: { table: "case_control", module: "cases", row: (record) => ({ id: record.id, case_number: record.caseNumber, client_name: record.clientName || null, case_status: record.status || "Abierto", assigned_to: record.assignedTo || null, follow_up_date: record.followUpDate || null, data: record }) },
+  users: { table: "user_records", module: "users", row: (record) => ({ id: record.id, email: record.email, profile: record.profile || null, active: record.active === "Yes", data: record }) },
+  donors: { table: "donors", module: "donors", row: (record) => ({ id: record.id, donor_number: record.donorId, first_name: record.firstName, last_name: record.lastName, donation_date: record.date || null, amount: record.amount || null, data: record }) },
+  volunteers: { table: "volunteers", module: "volunteers", row: (record) => ({ id: record.id, volunteer_number: record.volunteerId, first_name: record.firstName, last_name: record.lastName, status: record.status || "Active", volunteer_date: record.date || null, data: record }) },
+  food: { table: "service_records", module: "services", serviceType: "food_distribution", row: (record) => ({ id: record.id, service_type: "food_distribution", service_date: record.date, full_name: record.fullName, address: record.address || null, children: Number(record.children) || 0, adults: Number(record.adults) || 0, seniors: Number(record.seniors) || 0, total_household: [record.children, record.adults, record.seniors].reduce((sum, value) => sum + (Number(value) || 0), 0), data: record }) },
+  clothing: { table: "service_records", module: "services", serviceType: "clothing_drive", row: (record) => ({ id: record.id, service_type: "clothing_drive", service_date: record.date, full_name: record.fullName, total_household: Number(record.totalHousehold) || 0, data: record }) },
+  audit: { table: "audit_logs", module: "audit", row: (record) => ({ id: record.id, data: record }) },
+  settings: { table: "institution_settings", module: "configuration", row: (record) => ({ id: record.id, organization_name: String((record.organization as { name?: unknown } | undefined)?.name || "UCCW"), data: record }) }
 };
 
 function resourceFrom(value: string): Resource | null { return Object.prototype.hasOwnProperty.call(resources, value) ? value as Resource : null; }
 async function context(request: NextRequest, resourceName: string) {
   const resource = resourceFrom(resourceName); const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_ANON_KEY; const token = request.cookies.get("uccw_session")?.value;
   if (!resource || !url || !key || !token) return null;
-  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, actor: { email, userId } }; } catch { return null; }
+  try { const verified = await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET || "uccw-demo-session-only-not-for-production-2026")); const accessToken = verified.payload.accessToken; const email = typeof verified.payload.email === "string" ? verified.payload.email : "Usuario no identificado"; const userId = typeof verified.payload.userId === "string" ? verified.payload.userId : undefined; if (typeof accessToken !== "string") return null; return { resource: resources[resource], url: url.replace(/\/$/, ""), key, accessToken, role: normalizeRole(verified.payload.role), actor: { email, userId } }; } catch { return null; }
 }
 function headers(key: string, accessToken: string, extra: Record<string, string> = {}) { return { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", ...extra }; }
+async function audit(current: NonNullable<Awaited<ReturnType<typeof context>>>, action: string, resource: string, recordId?: string, details: Record<string, unknown> = {}) { const data = { id: crypto.randomUUID(), action, module: current.resource.module, resource, recordId, actor: current.actor.email, actorUserId: current.actor.userId, role: current.role, details, createdAt: new Date().toISOString() }; await fetch(`${current.url}/rest/v1/audit_logs`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ id: data.id, action, module: current.resource.module, resource, record_id: recordId || null, actor_email: current.actor.email, actor_user_id: current.actor.userId || null, data }) }).catch(() => null); }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!can(current.role, current.resource.module, "read")) return NextResponse.json({ error: "Su rol no tiene permiso para consultar este módulo." }, { status: 403 });
   const requestUrl = new URL(request.url); const search = requestUrl.searchParams.get("q")?.trim().slice(0, 120) || ""; const pageNumber = Math.max(Number(requestUrl.searchParams.get("page")) || 1, 1); const envelope = name === "clients" && requestUrl.searchParams.has("page");
-  const clientId = requestUrl.searchParams.get("clientId")?.trim() || ""; const filter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : name === "client-services" && clientId ? `&client_id=eq.${encodeURIComponent(clientId)}` : "";
+  const clientId = requestUrl.searchParams.get("clientId")?.trim() || ""; const deleted = requestUrl.searchParams.get("deleted") === "only"; if (deleted && !["Administrator", "Supervisor"].includes(current.role)) return NextResponse.json({ error: "No autorizado para consultar la papelera." }, { status: 403 }); const deletedFilter = name === "audit" ? "" : deleted ? "&deleted_at=not.is.null" : "&deleted_at=is.null"; const resourceFilter = current.resource.serviceType ? `&service_type=eq.${current.resource.serviceType}` : name === "client-services" && clientId ? `&client_id=eq.${encodeURIComponent(clientId)}` : ""; const filter = `${resourceFilter}${deletedFilter}`;
   // Cada respuesta se mantiene acotada. Los clientes grandes se leen por páginas
   // desde el navegador para no superar el tiempo/límite de tamaño de una función.
   const requestedLimit = Number(requestUrl.searchParams.get("limit"));
@@ -55,20 +61,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   for (let offset = startOffset; offset < 50000; offset += pageSize) {
     const clientSelect = name === "clients" ? ",client_number" : "";
     const searchFilter = name === "clients" && search ? `&or=(${encodeURIComponent(`full_name.ilike.*${search}*,client_number.ilike.*${search}*,data->>city.ilike.*${search}*,data->>email.ilike.*${search}*,data->>phone.ilike.*${search}*,data->>last4Ssn.ilike.*${search}*`)})` : "";
-    const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}${filter}${searchFilter}`, { headers: headers(current.key, current.accessToken, envelope ? { Prefer: "count=exact" } : {}), cache: "no-store" });
-    if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "No fue posible leer los registros" }, { status: response.status }); }
+    const requestHeaders = headers(current.key, current.accessToken, envelope ? { Prefer: "count=exact" } : {}); let response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}${name === "audit" ? "" : ",deleted_at,deleted_by"}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}${filter}${searchFilter}`, { headers: requestHeaders, cache: "no-store" });
+    if (!response.ok && name !== "audit" && !deleted) { const detail = await response.clone().json().catch(() => null) as { message?: string } | null; if (detail?.message?.includes("deleted_at") || detail?.message?.includes("deleted_by")) response = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id,data,created_at${clientSelect}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}${resourceFilter}${searchFilter}`, { headers: requestHeaders, cache: "no-store" }); }
+    if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: deleted ? "La migración de seguridad aún no está aplicada en Supabase." : detail?.message || "No fue posible leer los registros" }, { status: response.status }); }
     if (envelope) total = Number(response.headers.get("content-range")?.split("/")[1]) || 0;
     const page = await response.json() as { data?: StoredRecord; id: string; created_at: string }[];
     rows.push(...page);
     if (pagedRequest || page.length < pageSize) break;
   }
 
-  const records = rows.map((row) => ({ ...row.data, id: row.data?.id || row.id, clientId: name === "clients" ? row.client_number || row.data?.clientId : row.data?.clientId, createdAt: row.data?.createdAt || row.created_at }));
+  const records = rows.map((row) => { const record = normalizeDataRecord({ ...row.data, id: row.data?.id || row.id, clientId: name === "clients" ? row.client_number || row.data?.clientId : row.data?.clientId, createdAt: row.data?.createdAt || row.created_at, deletedAt: (row as typeof row & { deleted_at?: string }).deleted_at, deletedBy: (row as typeof row & { deleted_by?: string }).deleted_by }); return name === "audit" ? record : { ...record, qualityIssues: incompleteFields(name, record) }; });
   return NextResponse.json(envelope ? { records, total } : records);
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (name === "audit" || !can(current.role, current.resource.module, "write")) return NextResponse.json({ error: "Su rol no tiene permiso para modificar este módulo." }, { status: 403 });
   const payload = await request.json() as { record?: StoredRecord; records?: StoredRecord[]; skipExisting?: boolean; mergeExisting?: boolean }; let records = payload.records || (payload.record ? [payload.record] : []);
   if (!records.length || records.length > 250 || records.some((record) => !record.id)) return NextResponse.json({ error: "Registro inválido" }, { status: 400 });
   if (payload.mergeExisting && name === "clients") {
@@ -82,20 +90,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const existingRows = await existingResponse.json() as { id: string; client_number?: string; data?: StoredRecord }[]; const existing = new Map(existingRows.map((row) => [row.client_number, { ...row.data, id: row.id }]));
     records = records.map((record) => existing.get(record.clientId || "") ? mergeClientRecord(existing.get(record.clientId || "")!, record) : record);
   }
+  const configuredRequired = process.env[`REQUIRED_FIELDS_${name.replace(/-/g, "_").toUpperCase()}`]; const required = requiredFields(name, configuredRequired);
+  records = records.map((record) => { const normalized = normalizeDataRecord(record); return { ...normalized, qualityIssues: incompleteFields(name, normalized) }; });
+  const invalid = records.map((record, index) => ({ index: index + 1, id: record.id, errors: validateDataRecord(name, record, required) })).filter((item) => item.errors.length);
+  if (invalid.length) return NextResponse.json({ error: `${invalid.length} registro(s) no cumplen las reglas de calidad.`, rejected: invalid }, { status: 422 });
+  const ids = records.map((record) => String(record.id)); if (new Set(ids).size !== ids.length) return NextResponse.json({ error: "La solicitud contiene identificadores duplicados." }, { status: 409 });
   const auditedAt = new Date().toISOString();
   records = records.map((record) => ({ ...record, createdBy: typeof record.createdBy === "string" && record.createdBy ? record.createdBy : current.actor.email, createdByUserId: typeof record.createdByUserId === "string" && record.createdByUserId ? record.createdByUserId : current.actor.userId, updatedBy: current.actor.email, updatedByUserId: current.actor.userId, updatedAt: auditedAt }));
   const conflict = name === "clients" ? "client_number" : name === "donors" ? "donor_number" : name === "volunteers" ? "volunteer_number" : name === "users" ? "email" : "id";
   const body = records.length === 1 ? current.resource.row(records[0]) : records.map((record) => current.resource.row(record));
   const preference = payload.skipExisting && name === "clients" ? "resolution=ignore-duplicates,return=minimal" : "resolution=merge-duplicates,return=minimal";
+  let existed = false; if (records.length === 1) { const check = await fetch(`${current.url}/rest/v1/${current.resource.table}?select=id&id=eq.${encodeURIComponent(String(records[0].id))}&limit=1`, { headers: headers(current.key, current.accessToken), cache: "no-store" }); if (check.ok) existed = ((await check.json() as unknown[]).length > 0); }
   const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?on_conflict=${conflict}`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: preference }), body: JSON.stringify(body) });
-  if (!response.ok) return NextResponse.json({ error: "No fue posible guardar el registro" }, { status: response.status });
+  if (!response.ok) { const detail = await response.json().catch(() => null) as { code?: string; message?: string } | null; const duplicate = detail?.code === "23505" || detail?.message?.toLowerCase().includes("duplicate"); return NextResponse.json({ error: duplicate ? "El identificador ya existe. No se permiten IDs duplicados." : detail?.message || "No fue posible guardar el registro" }, { status: duplicate ? 409 : response.status }); }
+  await audit(current, payload.records ? "import" : existed ? "update" : "create", name, records.length === 1 ? String(records[0].id) : undefined, { count: records.length });
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); const id = new URL(request.url).searchParams.get("id"); if (!current || !id) return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
-  const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: headers(current.key, current.accessToken) });
+  if (name === "audit" || !can(current.role, current.resource.module, "delete")) return NextResponse.json({ error: "Su rol no tiene permiso para eliminar registros." }, { status: 403 });
+  const deletedAt = new Date().toISOString(); const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ deleted_at: deletedAt, deleted_by: current.actor.email }) });
   if (!response.ok) return NextResponse.json({ error: "No fue posible eliminar el registro" }, { status: response.status });
+  await audit(current, "delete", name, id, { recoverable: true, deletedAt });
   return NextResponse.json({ ok: true });
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) { const { resource: name } = await params; const current = await context(request, name); const id = new URL(request.url).searchParams.get("id"); if (!current || !id) return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 }); if (name === "audit" || !["Administrator", "Supervisor"].includes(current.role)) return NextResponse.json({ error: "No autorizado para recuperar registros." }, { status: 403 }); const response = await fetch(`${current.url}/rest/v1/${current.resource.table}?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ deleted_at: null, deleted_by: null }) }); if (!response.ok) return NextResponse.json({ error: "No fue posible recuperar el registro." }, { status: response.status }); await audit(current, "restore", name, id); return NextResponse.json({ ok: true }); }
