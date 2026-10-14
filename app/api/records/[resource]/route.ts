@@ -78,7 +78,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
   const { resource: name } = await params; const current = await context(request, name); if (!current) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (name === "audit" || !can(current.role, current.resource.module, "write", current.permissions)) return NextResponse.json({ error: "Su usuario no tiene permiso para modificar este módulo." }, { status: 403 });
-  const payload = await request.json() as { record?: StoredRecord; records?: StoredRecord[]; skipExisting?: boolean; mergeExisting?: boolean }; let records = payload.records || (payload.record ? [payload.record] : []);
+  const payload = await request.json() as { record?: StoredRecord; records?: StoredRecord[]; password?: string; skipExisting?: boolean; mergeExisting?: boolean }; let records = payload.records || (payload.record ? [payload.record] : []);
   if (!records.length || records.length > 250 || records.some((record) => !record.id)) return NextResponse.json({ error: "Registro inválido" }, { status: 400 });
   if (payload.mergeExisting && name === "clients") {
     const consolidated = new Map<string, StoredRecord>();
@@ -95,6 +95,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   records = records.map((record) => { const normalized = normalizeDataRecord(record); return { ...normalized, qualityIssues: incompleteFields(name, normalized) }; });
   const invalid = records.map((record, index) => ({ index: index + 1, id: record.id, errors: validateDataRecord(name, record, required) })).filter((item) => item.errors.length);
   if (invalid.length) return NextResponse.json({ error: `${invalid.length} registro(s) no cumplen las reglas de calidad.`, rejected: invalid }, { status: 422 });
+  if (name === "users" && records.length === 1 && payload.password) {
+    const record = records[0]; const email = String(record.email || "").trim().toLowerCase();
+    const profileLookup = await fetch(`${current.url}/rest/v1/profiles?select=id&email=eq.${encodeURIComponent(email)}&limit=1`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
+    const existingProfiles = profileLookup.ok ? await profileLookup.json() as { id: string }[] : [];
+    if (existingProfiles[0]?.id) records[0] = { ...record, id: existingProfiles[0].id };
+    else {
+      const signupResponse = await fetch(`${current.url}/auth/v1/signup`, { method: "POST", headers: { apikey: current.key, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: payload.password, data: { name: record.name, firstname: record.firstName } }) });
+      const signup = await signupResponse.json().catch(() => null) as { id?: string; user?: { id?: string }; msg?: string; message?: string } | null;
+      const authId = signup?.user?.id || signup?.id;
+      if (!signupResponse.ok || !authId) return NextResponse.json({ error: signup?.msg || signup?.message || "No fue posible crear la cuenta de acceso en Supabase Auth." }, { status: signupResponse.status || 400 });
+      records[0] = { ...record, id: authId };
+      const newProfile = { id: authId, profile: normalizeRole(record.profile), name: String(record.name || ""), firstname: String(record.firstName || ""), email, active: record.active === "Yes", permissions: normalizePermissions(record.permissions) };
+      const profileResponse = await fetch(`${current.url}/rest/v1/profiles?on_conflict=id`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "resolution=merge-duplicates,return=minimal" }), body: JSON.stringify(newProfile) });
+      if (!profileResponse.ok) { const detail = await profileResponse.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "La cuenta fue creada, pero no fue posible guardar su perfil y permisos." }, { status: profileResponse.status }); }
+    }
+  }
   const ids = records.map((record) => String(record.id)); if (new Set(ids).size !== ids.length) return NextResponse.json({ error: "La solicitud contiene identificadores duplicados." }, { status: 409 });
   const auditedAt = new Date().toISOString();
   records = records.map((record) => ({ ...record, createdBy: typeof record.createdBy === "string" && record.createdBy ? record.createdBy : current.actor.email, createdByUserId: typeof record.createdByUserId === "string" && record.createdByUserId ? record.createdByUserId : current.actor.userId, updatedBy: current.actor.email, updatedByUserId: current.actor.userId, updatedAt: auditedAt }));
@@ -107,12 +123,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (name === "users") {
     for (const record of records) {
       const email = String(record.email || "").trim().toLowerCase(); if (!email) continue;
-      const profileResponse = await fetch(`${current.url}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, { method: "PATCH", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ profile: normalizeRole(record.profile), permissions: normalizePermissions(record.permissions), active: record.active === "Yes", updated_at: auditedAt }) });
+      const profileLookup = await fetch(`${current.url}/rest/v1/profiles?select=id&email=eq.${encodeURIComponent(email)}&limit=1`, { headers: headers(current.key, current.accessToken), cache: "no-store" }); const profileRows = profileLookup.ok ? await profileLookup.json() as { id: string }[] : [];
+      if (!profileRows[0]?.id) continue;
+      const profileResponse = await fetch(`${current.url}/rest/v1/profiles?id=eq.${encodeURIComponent(profileRows[0].id)}`, { method: "PATCH", headers: headers(current.key, current.accessToken, { Prefer: "return=minimal" }), body: JSON.stringify({ profile: normalizeRole(record.profile), permissions: normalizePermissions(record.permissions), active: record.active === "Yes", updated_at: auditedAt }) });
       if (!profileResponse.ok) { const detail = await profileResponse.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "El usuario se guardó, pero no fue posible actualizar sus permisos de acceso." }, { status: profileResponse.status }); }
     }
   }
   await audit(current, payload.records ? "import" : existed ? "update" : "create", name, records.length === 1 ? String(records[0].id) : undefined, { count: records.length });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, record: records.length === 1 ? records[0] : undefined });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
