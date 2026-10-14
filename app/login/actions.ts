@@ -26,10 +26,11 @@ export async function login(formData: FormData) {
       body: JSON.stringify({ email, password }),
       cache: "no-store"
     });
-    const result = await response.json().catch(() => null) as { access_token?: string; user?: { id?: string } } | null;
+    const result = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id?: string } } | null;
     if (!response.ok || !result?.user?.id) redirect("/login?error=1");
     userId = result.user.id;
     var accessToken = result.access_token;
+    var refreshToken = result.refresh_token;
     const profileResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/profiles?select=profile&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
     const profiles = profileResponse.ok ? await profileResponse.json() as { profile?: string }[] : [];
     role = normalizeRole(profiles[0]?.profile);
@@ -39,7 +40,7 @@ export async function login(formData: FormData) {
     if (email !== configuredEmail || password !== configuredPassword) redirect("/login?error=1");
   }
 
-  const token = await new SignJWT({ email, userId, accessToken, role, provider: userId ? "supabase" : "demo" })
+  const token = await new SignJWT({ email, userId, accessToken, refreshToken, role, provider: userId ? "supabase" : "demo" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("8h")
