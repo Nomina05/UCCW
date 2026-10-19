@@ -1,7 +1,7 @@
 import { JWTPayload } from "jose";
 import { ModulePermissions, normalizePermissions, normalizeRole, Role } from "./security";
 
-export type ProfileAccess = { role: Role; permissions: ModulePermissions | null };
+export type ProfileAccess = { role: Role; permissions: ModulePermissions | null; displayName?: string };
 
 /** Resolve the current role from Supabase so an old JWT cannot retain stale permissions. */
 export async function resolveProfileRole(payload: JWTPayload): Promise<Role> {
@@ -17,9 +17,10 @@ export async function resolveProfileAccess(payload: JWTPayload): Promise<Profile
   const fallback = { role: normalizeRole(payload.role), permissions: normalizePermissions(payload.permissions) };
   if (!url || !key || !accessToken || !userId) return fallback;
   try {
-    const response = await fetch(`${url}/rest/v1/profiles?select=profile,permissions&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+    const response = await fetch(`${url}/rest/v1/profiles?select=profile,permissions,name,firstname,email&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
     if (!response.ok) return fallback;
-    const rows = await response.json() as { profile?: string; permissions?: unknown }[];
-    return { role: normalizeRole(rows[0]?.profile || payload.role), permissions: normalizePermissions(rows[0]?.permissions) };
+    const rows = await response.json() as { profile?: string; permissions?: unknown; name?: string; firstname?: string; email?: string }[];
+    const profile = rows[0];
+    return { role: normalizeRole(profile?.profile || payload.role), permissions: normalizePermissions(profile?.permissions), displayName: [profile?.firstname, profile?.name].filter(Boolean).join(" ") || profile?.email };
   } catch { return fallback; }
 }

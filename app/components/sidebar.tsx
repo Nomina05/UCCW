@@ -23,10 +23,12 @@ const links: { id: Section; module: Module; href: string; en: string; es: string
 ];
 
 export default function Sidebar({ active }: { active: Section }) {
-  const { language } = useLanguage(); const [access, setAccess] = useState<{ role: Role; permissions: ModulePermissions | null }>({ role: "Read Only", permissions: null });
-  useEffect(() => { fetch("/api/session", { cache: "no-store" }).then((response) => response.json()).then((result) => setAccess({ role: result.role || "Read Only", permissions: result.permissions || null })).catch(() => setAccess({ role: "Read Only", permissions: null })); }, []);
+  const { language } = useLanguage(); const [access, setAccess] = useState<{ role: Role; permissions: ModulePermissions | null; displayName: string; email: string }>({ role: "Read Only", permissions: null, displayName: "", email: "" });
+  useEffect(() => { fetch("/api/session", { cache: "no-store" }).then((response) => response.json()).then((result) => setAccess({ role: result.role || "Read Only", permissions: result.permissions || null, displayName: result.displayName || result.email || "", email: result.email || "" })).catch(() => setAccess({ role: "Read Only", permissions: null, displayName: "", email: "" })); }, []);
+  async function logout() { await fetch("/api/session", { method: "DELETE" }).catch(() => null); window.location.assign("/login"); }
   return <aside className="sidebar">
     <div className="sidebar-top"><Link className="sidebar-brand" href="/dashboard"><span>U</span><strong>UCCW</strong></Link><LanguageSwitcher /></div>
+    <details className="session-menu"><summary aria-label={language === "en" ? "Active user menu" : "Menú de usuario activo"}><span className="session-avatar" aria-hidden="true">♙</span><span className="session-identity"><strong>{access.displayName || (language === "en" ? "Active user" : "Usuario activo")}</strong><small>{access.email || access.role}</small></span><span className="session-chevron" aria-hidden="true">⌄</span></summary><div className="session-dropdown"><span>{language === "en" ? "Signed in as" : "Sesión iniciada como"}</span><strong>{access.displayName || access.email}</strong><small>{access.role}</small><button type="button" onClick={() => void logout()}>{language === "en" ? "Sign out" : "Cerrar sesión"}</button></div></details>
     <p className="sidebar-caption">{language === "en" ? "SYSTEM MANAGEMENT" : "GESTIÓN DEL SISTEMA"}</p>
     <nav>{links.filter((link) => can(access.role, link.module, "read", access.permissions)).map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
     <p className="sidebar-footer">{language === "en" ? "Case management system" : "Sistema de registro de casos"}</p>
