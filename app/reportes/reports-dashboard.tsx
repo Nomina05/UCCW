@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import Sidebar from "../components/sidebar";
-import { loadRemote } from "../lib/remote-records";
+import { loadRemote, loadRemoteByIds } from "../lib/remote-records";
 
 type Client = { id?: string; clientId?: string; fullName?: string; city?: string; state?: string; dateOfBirth?: string; gender?: string; children?: string; adults?: string; seniors?: string };
 type Attention = { id: string; clientId: string; clientName?: string; serviceCategory?: string; subservice?: string; requestedDate?: string; status?: "Requested" | "In Progress" | "Completed" | "Cancelled"; assignedTo?: string; completionDate?: string; followUpDate?: string; comments?: string; createdAt?: string };
@@ -27,7 +27,7 @@ function ChartCard({ title, description, rows, color }: { title: string; descrip
 export default function ReportsDashboard() {
   const [clients, setClients] = useState<Client[]>([]); const [attentions, setAttentions] = useState<Attention[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [updatedAt, setUpdatedAt] = useState("");
   const [service, setService] = useState(""); const [subservice, setSubservice] = useState(""); const [status, setStatus] = useState(""); const [city, setCity] = useState(""); const [gender, setGender] = useState(""); const [dateFrom, setDateFrom] = useState(""); const [dateTo, setDateTo] = useState("");
-  async function refresh() { setLoading(true); setError(""); try { const [clientRows, attentionRows] = await Promise.all([loadRemote<Client>("clients"), loadRemote<Attention>("client-services")]); setClients(clientRows); setAttentions(attentionRows); setUpdatedAt(new Date().toLocaleString("en-US")); } catch (cause) { setError(cause instanceof Error ? cause.message : "Reports could not be loaded from Supabase."); } finally { setLoading(false); } }
+  async function refresh() { setLoading(true); setError(""); try { const attentionRows = await loadRemote<Attention>("client-services"); const clientRows = await loadRemoteByIds<Client>("clients", attentionRows.map((item) => item.clientId)); setClients(clientRows); setAttentions(attentionRows); setUpdatedAt(new Date().toLocaleString("en-US")); } catch (cause) { setError(cause instanceof Error ? cause.message : "Reports could not be loaded from Supabase."); } finally { setLoading(false); } }
   useEffect(() => { void refresh(); }, []);
 
   const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);

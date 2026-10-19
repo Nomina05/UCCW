@@ -33,6 +33,20 @@ export async function loadRemotePage<T>(resource: string, page: number, pageSize
   if (!response.ok) throw new Error(result?.error || `Error ${response.status} al cargar los registros.`);
   return { records: result?.records || [], total: Number(result?.total) || 0 };
 }
+export async function loadRemoteByIds<T>(resource: string, ids: string[]): Promise<T[]> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return [];
+  const chunks: string[][] = [];
+  for (let index = 0; index < unique.length; index += 100) chunks.push(unique.slice(index, index + 100));
+  const pages = await Promise.all(chunks.map(async (chunk) => {
+    const params = new URLSearchParams({ ids: chunk.join(","), limit: String(chunk.length) });
+    const response = await request(`/api/records/${resource}?${params}`, { cache: "no-store" });
+    const result = await response.json().catch(() => null) as T[] | { error?: string } | null;
+    if (!response.ok) throw new Error(!Array.isArray(result) ? result?.error : `Error ${response.status}`);
+    return Array.isArray(result) ? result : [];
+  }));
+  return pages.flat();
+}
 export async function saveRemote(resource: string, record: unknown) { const response = await request(`/api/records/${resource}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record }) }); const result = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(result?.error || `Error ${response.status} al guardar.`); }
 export async function deleteRemote(resource: string, id: string) { const response = await request(`/api/records/${resource}?id=${encodeURIComponent(id)}`, { method: "DELETE" }); const result = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(result?.error || `Error ${response.status} al eliminar.`); }
 
