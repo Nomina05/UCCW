@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
 import { deleteRemote, loadRemote, saveRemote } from "../lib/remote-records";
+import { exportExcel } from "../lib/excel-export";
 
 type DonorForm = { donorId: string; firstName: string; lastName: string; address: string; city: string; state: string; zip: string; phone: string; email: string; date: string; amount: string; otherDonations: string; notes: string; };
 type Donor = DonorForm & { id: string; createdAt: string };
@@ -17,7 +18,7 @@ function normalize(item: Partial<Donor> & { name?: string; document?: string; co
 function nextId(donors: Donor[]) { const highest = donors.reduce((max, donor) => Math.max(max, Number(donor.donorId.match(/\d+$/)?.[0]) || 0), 0); return `D-${String(highest + 1).padStart(5, "0")}`; }
 
 export default function DonorManager() {
-  const [donors, setDonors] = useState<Donor[]>([]); const [search, setSearch] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Donor | null>(null); const [form, setForm] = useState<DonorForm>(initialForm);
+  const [donors, setDonors] = useState<Donor[]>([]); const [search, setSearch] = useState(""); const [exporting, setExporting] = useState(false); const [exportError, setExportError] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Donor | null>(null); const [form, setForm] = useState<DonorForm>(initialForm);
   useEffect(() => { let active = true; loadRemote<Donor>("donors").then((records) => { if (active) setDonors(records.map(normalize)); }); return () => { active = false; }; }, []);
   function persist(next: Donor[]) { setDonors(next); }
   function update<K extends keyof DonorForm>(key: K, value: DonorForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
@@ -25,9 +26,11 @@ export default function DonorManager() {
   function openEdit(donor: Donor) { setEditing(donor); setForm({ ...donor }); setIsFormOpen(true); }
   function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, donorId: nextId(donors) }; persist(editing ? donors.map((donor) => donor.id === editing.id ? record : donor) : [record, ...donors]); saveRemote("donors", record); setIsFormOpen(false); }
   function remove(donor: Donor) { if (window.confirm(`¿Eliminar el donante ${donor.firstName} ${donor.lastName}?`)) { persist(donors.filter((item) => item.id !== donor.id)); deleteRemote("donors", donor.id); } }
+  async function exportDonors() { setExporting(true); setExportError(""); try { const records = (await loadRemote<Donor>("donors")).map(normalize); await exportExcel(records.map((donor) => ({ "Donor ID": donor.donorId, "First Name": donor.firstName, "Last Name": donor.lastName, Address: donor.address, City: donor.city, State: donor.state, Zip: donor.zip, Phone: donor.phone, Email: donor.email, Date: donor.date, Amount: Number(donor.amount) || 0, "Other Donations": donor.otherDonations, Notes: donor.notes, "Created At": donor.createdAt })), "Donors", "UCCW-donors"); } catch (error) { setExportError(error instanceof Error ? error.message : "No fue posible exportar los donantes."); } finally { setExporting(false); } }
   const visible = useMemo(() => { const text = search.trim().toLowerCase(); return text ? donors.filter((donor) => [donor.donorId, donor.firstName, donor.lastName, donor.city, donor.phone, donor.email].some((value) => value.toLowerCase().includes(text))) : donors; }, [donors, search]);
   return <main className="app-shell clients-page"><Sidebar active="donantes" /><section className="clients-content">
-    <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Donantes</h1><p>Registra y consulta las contribuciones recibidas.</p></div><button onClick={openNew}>+ Nuevo donante</button></div>
+    <div className="page-heading"><div><p className="eyebrow">Administración</p><h1>Donantes</h1><p>Registra y consulta las contribuciones recibidas.</p></div><div className="heading-actions"><button type="button" className="secondary-button" onClick={() => void exportDonors()} disabled={exporting}>{exporting ? "Exportando…" : "Exportar Excel"}</button><button onClick={openNew}>+ Nuevo donante</button></div></div>
+    {exportError && <p className="form-error" role="alert">{exportError}</p>}
     <div className="clients-toolbar"><input aria-label="Buscar donantes" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por Donor ID, nombre, ciudad, correo o teléfono" /><span>{visible.length} donante{visible.length === 1 ? "" : "s"}</span></div>
     <div className="table-card">{visible.length === 0 ? <div className="empty-state"><h2>No hay donantes registrados</h2><p>Agrega el primer donante para comenzar.</p></div> : <table><thead><tr><th>Donor ID</th><th>Donante</th><th>Fecha</th><th>Monto</th><th>Contacto</th><th aria-label="Acciones"></th></tr></thead><tbody>{visible.map((donor) => <tr key={donor.id}><td>{donor.donorId}</td><td><strong>{donor.firstName} {donor.lastName}</strong><small>{donor.city || "Sin ciudad"}</small></td><td>{donor.date || "No indicada"}</td><td>{donor.amount ? `$${Number(donor.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "No indicado"}</td><td><span>{donor.email || "Sin correo"}</span><small>{donor.phone || "Sin teléfono"}</small></td><td className="actions"><button className="text-button" onClick={() => openEdit(donor)}>Editar</button><button className="text-button danger" onClick={() => remove(donor)}>Eliminar</button></td></tr>)}</tbody></table>}</div>
     <p className="storage-note">Los datos se guardan en este navegador de demostración.</p>
