@@ -7,6 +7,9 @@ export type InstitutionSettings = {
   templates: { letterHeader: string; letterFooter: string; reportHeader: string; reportFooter: string };
   serviceCatalog: ServiceCatalogItem[];
   caseStatuses: string[];
+  caseWorkflow: string[];
+  caseDepartments: string[];
+  caseAssignmentRules: { department: string; assignee: string }[];
   storage: { provider: "supabase" | "google-drive" | "dropbox" | "sharepoint"; status: "active" | "planned" };
   updatedAt?: string;
 };
@@ -25,6 +28,9 @@ export const defaultInstitutionSettings: InstitutionSettings = {
     { id: "clothing-drive", name: "Clothing Drive", icon: "👕", subservices: [] }
   ],
   caseStatuses: ["Abierto", "En proceso", "Cerrado", "Cancelado"],
+  caseWorkflow: ["Intake", "Assessment", "Documentation", "Service Delivery", "Follow-up", "Closure"],
+  caseDepartments: ["Social Services", "Legal / Immigration", "Worker Resource Center", "Educational Empowerment", "Health / Wellness"],
+  caseAssignmentRules: [],
   storage: { provider: "supabase", status: "active" }
 };
 
@@ -36,6 +42,9 @@ export function mergeInstitutionSettings(value?: Partial<InstitutionSettings>): 
     templates: { ...defaultInstitutionSettings.templates, ...value?.templates },
     storage: { ...defaultInstitutionSettings.storage, ...value?.storage },
     serviceCatalog: value?.serviceCatalog?.length ? value.serviceCatalog : defaultInstitutionSettings.serviceCatalog,
-    caseStatuses: value?.caseStatuses?.length ? value.caseStatuses : defaultInstitutionSettings.caseStatuses
+    caseStatuses: value?.caseStatuses?.length ? value.caseStatuses : defaultInstitutionSettings.caseStatuses,
+    caseWorkflow: value?.caseWorkflow?.length ? value.caseWorkflow : defaultInstitutionSettings.caseWorkflow,
+    caseDepartments: value?.caseDepartments?.length ? value.caseDepartments : defaultInstitutionSettings.caseDepartments,
+    caseAssignmentRules: value?.caseAssignmentRules || defaultInstitutionSettings.caseAssignmentRules
   };
 }

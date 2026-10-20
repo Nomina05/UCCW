@@ -1,12 +1,13 @@
 export type Role = "Administrator" | "Supervisor" | "Employee" | "Read Only";
 export type Action = "read" | "write" | "delete" | "download";
-export type Module = "dashboard" | "clients" | "cases" | "donors" | "volunteers" | "services" | "users" | "reports" | "audit" | "backup" | "configuration";
+export type Module = "dashboard" | "clients" | "cases" | "agenda" | "donors" | "volunteers" | "services" | "users" | "reports" | "audit" | "backup" | "configuration";
 export type ModulePermissions = Partial<Record<Module, Action[]>>;
 
 export const modules: { id: Module; en: string; es: string; actions: Action[] }[] = [
   { id: "dashboard", en: "Dashboard", es: "Inicio", actions: ["read"] },
   { id: "clients", en: "Clients", es: "Clientes", actions: ["read", "write", "delete", "download"] },
   { id: "cases", en: "Case Management", es: "Control de casos", actions: ["read", "write", "delete"] },
+  { id: "agenda", en: "Institutional Calendar", es: "Agenda institucional", actions: ["read", "write", "delete"] },
   { id: "donors", en: "Donors", es: "Donantes", actions: ["read", "write", "delete"] },
   { id: "volunteers", en: "Volunteers", es: "Voluntarios", actions: ["read", "write", "delete"] },
   { id: "services", en: "Services", es: "Servicios", actions: ["read", "write", "delete"] },
@@ -18,10 +19,10 @@ export const modules: { id: Module; en: string; es: string; actions: Action[] }[
 ];
 
 const matrix: Record<Role, Partial<Record<Module, Action[]>>> = {
-  Administrator: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read", "write", "delete"], reports: ["read", "download"], audit: ["read"], backup: ["read", "write", "download"], configuration: ["read", "write", "download"] },
-  Supervisor: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read"], reports: ["read", "download"], audit: ["read"], backup: ["read", "download"], configuration: ["read", "write", "download"] },
-  Employee: { dashboard: ["read"], clients: ["read", "write", "download"], cases: ["read", "write"], donors: ["read", "write"], volunteers: ["read", "write"], services: ["read", "write"], reports: ["read", "download"] },
-  "Read Only": { dashboard: ["read"], clients: ["read", "download"], cases: ["read"], donors: ["read"], volunteers: ["read"], services: ["read"], reports: ["read", "download"] }
+  Administrator: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], agenda: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read", "write", "delete"], reports: ["read", "download"], audit: ["read"], backup: ["read", "write", "download"], configuration: ["read", "write", "download"] },
+  Supervisor: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], agenda: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read"], reports: ["read", "download"], audit: ["read"], backup: ["read", "download"], configuration: ["read", "write", "download"] },
+  Employee: { dashboard: ["read"], clients: ["read", "write", "download"], cases: ["read", "write"], agenda: ["read", "write"], donors: ["read", "write"], volunteers: ["read", "write"], services: ["read", "write"], reports: ["read", "download"] },
+  "Read Only": { dashboard: ["read"], clients: ["read", "download"], cases: ["read"], agenda: ["read"], donors: ["read"], volunteers: ["read"], services: ["read"], reports: ["read", "download"] }
 };
 
 export function normalizeRole(value: unknown): Role { const role = String(value || "").trim().toLowerCase(); if (role.includes("admin")) return "Administrator"; if (role.includes("super")) return "Supervisor"; if (role.includes("consult") || role.includes("read") || role.includes("volunteer")) return "Read Only"; return "Employee"; }
