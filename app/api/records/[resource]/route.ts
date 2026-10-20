@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!serviceKey) return NextResponse.json({ error: "Falta configurar SUPABASE_SERVICE_ROLE_KEY en Vercel. La cuenta no puede activarse de forma segura en Supabase Auth." }, { status: 503 });
     const existingId = existingProfiles[0]?.id;
     const authUrl = existingId ? `${current.url}/auth/v1/admin/users/${encodeURIComponent(existingId)}` : `${current.url}/auth/v1/admin/users`;
-    const authResponse = await fetch(authUrl, { method: existingId ? "PUT" : "POST", headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: payload.password, email_confirm: true, user_metadata: { name: record.name, firstname: record.firstName } }), cache: "no-store" });
+    const authResponse = await fetch(authUrl, { method: existingId ? "PUT" : "POST", headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: payload.password, email_confirm: true, user_metadata: { name: record.name, firstname: record.firstName, must_change_password: true } }), cache: "no-store" });
     const authResult = await authResponse.json().catch(() => null) as { id?: string; user?: { id?: string }; msg?: string; message?: string } | null;
     const authId = existingId || authResult?.user?.id || authResult?.id;
     if (!authResponse.ok || !authId) return NextResponse.json({ error: authResult?.msg || authResult?.message || "No fue posible crear o actualizar la cuenta en Supabase Auth." }, { status: authResponse.status || 400 });

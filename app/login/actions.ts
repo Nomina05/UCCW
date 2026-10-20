@@ -11,7 +11,7 @@ const demoEmail = "demo@uccw.local";
 const demoPassword = "UccwDemo2026!";
 const demoSessionSecret = "uccw-demo-session-only-not-for-production-2026";
 
-type SessionData = { email: string; userId?: string; accessToken?: string; refreshToken?: string; role: string; sessionId: string };
+type SessionData = { email: string; userId?: string; accessToken?: string; refreshToken?: string; role: string; sessionId: string; mustChangePassword?: boolean };
 async function issueSession(data: SessionData) {
   const secret = process.env.SESSION_SECRET || demoSessionSecret;
   const token = await new SignJWT({ ...data, provider: data.userId ? "supabase" : "demo" }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("8h").sign(encoder.encode(secret));
@@ -35,6 +35,7 @@ export async function login(formData: FormData) {
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
   let userId: string | undefined;
   let role = "Administrator";
+  let mustChangePassword = false;
   const sessionId = crypto.randomUUID();
 
   if (supabaseUrl && supabaseAnonKey) {
@@ -44,9 +45,10 @@ export async function login(formData: FormData) {
       body: JSON.stringify({ email, password }),
       cache: "no-store"
     });
-    const result = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id?: string }; error_code?: string; msg?: string } | null;
+    const result = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id?: string; user_metadata?: { must_change_password?: boolean } }; error_code?: string; msg?: string } | null;
     if (!response.ok || !result?.user?.id) redirect(result?.error_code === "email_not_confirmed" || result?.msg?.toLowerCase().includes("email not confirmed") ? "/login?unconfirmed=1" : "/login?error=1");
     userId = result.user.id;
+    mustChangePassword = result.user.user_metadata?.must_change_password === true;
     var accessToken = result.access_token;
     var refreshToken = result.refresh_token;
     const profileResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/profiles?select=profile,active&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
@@ -70,10 +72,10 @@ export async function login(formData: FormData) {
     if (email !== configuredEmail || password !== configuredPassword) redirect("/login?error=1");
   }
 
-  const session = { email, userId, accessToken, refreshToken, role, sessionId };
+  const session = { email, userId, accessToken, refreshToken, role, sessionId, mustChangePassword };
   if (supabaseUrl && supabaseAnonKey) await registerActiveSession(supabaseUrl, supabaseAnonKey, session);
   await issueSession(session);
-  redirect("/dashboard");
+  redirect(mustChangePassword ? "/cambiar-clave" : "/dashboard");
 }
 
 export async function continueSession() {
@@ -82,10 +84,12 @@ export async function continueSession() {
   const secret = process.env.SESSION_SECRET || demoSessionSecret;
   const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_ANON_KEY;
   if (!pending || !url || !key) redirect("/login?error=1");
+  let mustChangePassword = false;
   try {
     const verified = await jwtVerify(pending, encoder.encode(secret));
-    const data: SessionData = { email: String(verified.payload.email || ""), userId: String(verified.payload.userId || ""), accessToken: String(verified.payload.accessToken || ""), refreshToken: String(verified.payload.refreshToken || ""), role: String(verified.payload.role || "Employee"), sessionId: String(verified.payload.sessionId || crypto.randomUUID()) };
+    const data: SessionData = { email: String(verified.payload.email || ""), userId: String(verified.payload.userId || ""), accessToken: String(verified.payload.accessToken || ""), refreshToken: String(verified.payload.refreshToken || ""), role: String(verified.payload.role || "Employee"), sessionId: String(verified.payload.sessionId || crypto.randomUUID()), mustChangePassword: verified.payload.mustChangePassword === true };
     await registerActiveSession(url, key, data); await issueSession(data);
+    mustChangePassword = data.mustChangePassword === true;
   } catch { redirect("/login?error=1"); }
-  redirect("/dashboard");
+  redirect(mustChangePassword ? "/cambiar-clave" : "/dashboard");
 }
