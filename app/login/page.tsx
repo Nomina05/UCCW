@@ -15,6 +15,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <input id="email" name="email" type="email" autoComplete="username" required autoFocus />
           <label htmlFor="password">Contraseña</label>
           <input id="password" name="password" type="password" autoComplete="current-password" required />
+          <a className="login-help-link" href="/recuperar-clave">Forgot password?</a>
           {error && <p className="error" role="alert">Correo o contraseña incorrectos.</p>}
           {unconfirmed && <p className="error" role="alert">La cuenta existe, pero su correo todavía no ha sido confirmado. Solicite al administrador que establezca una nueva contraseña.</p>}
           {disabled && <p className="error" role="alert">Esta cuenta está inactiva. Comuníquese con el administrador.</p>}

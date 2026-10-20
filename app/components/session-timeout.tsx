@@ -7,7 +7,7 @@ const inactivityMs = 10 * 60 * 1000;
 export default function SessionTimeout() {
   const pathname = usePathname();
   useEffect(() => {
-    if (pathname === "/login") return;
+    if (!pathname || ["/login", "/recuperar-clave", "/restablecer-clave"].includes(pathname)) return;
     let timer: ReturnType<typeof setTimeout>;
     let redirecting = false;
     const goToLogin = (reason = "") => { if (redirecting) return; redirecting = true; window.location.replace(`/login${reason}`); };
