@@ -99,17 +99,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const record = records[0]; const email = String(record.email || "").trim().toLowerCase();
     const profileLookup = await fetch(`${current.url}/rest/v1/profiles?select=id&email=eq.${encodeURIComponent(email)}&limit=1`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
     const existingProfiles = profileLookup.ok ? await profileLookup.json() as { id: string }[] : [];
-    if (existingProfiles[0]?.id) records[0] = { ...record, id: existingProfiles[0].id };
-    else {
-      const signupResponse = await fetch(`${current.url}/auth/v1/signup`, { method: "POST", headers: { apikey: current.key, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: payload.password, data: { name: record.name, firstname: record.firstName } }) });
-      const signup = await signupResponse.json().catch(() => null) as { id?: string; user?: { id?: string }; msg?: string; message?: string } | null;
-      const authId = signup?.user?.id || signup?.id;
-      if (!signupResponse.ok || !authId) return NextResponse.json({ error: signup?.msg || signup?.message || "No fue posible crear la cuenta de acceso en Supabase Auth." }, { status: signupResponse.status || 400 });
-      records[0] = { ...record, id: authId };
-      const newProfile = { id: authId, profile: normalizeRole(record.profile), name: String(record.name || ""), firstname: String(record.firstName || ""), email, active: record.active === "Yes", permissions: normalizePermissions(record.permissions) };
-      const profileResponse = await fetch(`${current.url}/rest/v1/profiles?on_conflict=id`, { method: "POST", headers: headers(current.key, current.accessToken, { Prefer: "resolution=merge-duplicates,return=minimal" }), body: JSON.stringify(newProfile) });
-      if (!profileResponse.ok) { const detail = await profileResponse.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "La cuenta fue creada, pero no fue posible guardar su perfil y permisos." }, { status: profileResponse.status }); }
-    }
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) return NextResponse.json({ error: "Falta configurar SUPABASE_SERVICE_ROLE_KEY en Vercel. La cuenta no puede activarse de forma segura en Supabase Auth." }, { status: 503 });
+    const existingId = existingProfiles[0]?.id;
+    const authUrl = existingId ? `${current.url}/auth/v1/admin/users/${encodeURIComponent(existingId)}` : `${current.url}/auth/v1/admin/users`;
+    const authResponse = await fetch(authUrl, { method: existingId ? "PUT" : "POST", headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: payload.password, email_confirm: true, user_metadata: { name: record.name, firstname: record.firstName } }), cache: "no-store" });
+    const authResult = await authResponse.json().catch(() => null) as { id?: string; user?: { id?: string }; msg?: string; message?: string } | null;
+    const authId = existingId || authResult?.user?.id || authResult?.id;
+    if (!authResponse.ok || !authId) return NextResponse.json({ error: authResult?.msg || authResult?.message || "No fue posible crear o actualizar la cuenta en Supabase Auth." }, { status: authResponse.status || 400 });
+    records[0] = { ...record, id: authId };
+    const newProfile = { id: authId, profile: normalizeRole(record.profile), name: String(record.name || ""), firstname: String(record.firstName || ""), email, active: record.active === "Yes", permissions: normalizePermissions(record.permissions) };
+    const profileResponse = await fetch(`${current.url}/rest/v1/profiles?on_conflict=id`, { method: "POST", headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(newProfile) });
+    if (!profileResponse.ok) { const detail = await profileResponse.json().catch(() => null) as { message?: string } | null; return NextResponse.json({ error: detail?.message || "La cuenta fue creada, pero no fue posible guardar su perfil y permisos." }, { status: profileResponse.status }); }
   }
   const ids = records.map((record) => String(record.id)); if (new Set(ids).size !== ids.length) return NextResponse.json({ error: "La solicitud contiene identificadores duplicados." }, { status: 409 });
   const auditedAt = new Date().toISOString();

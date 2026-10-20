@@ -44,13 +44,14 @@ export async function login(formData: FormData) {
       body: JSON.stringify({ email, password }),
       cache: "no-store"
     });
-    const result = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id?: string } } | null;
-    if (!response.ok || !result?.user?.id) redirect("/login?error=1");
+    const result = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id?: string }; error_code?: string; msg?: string } | null;
+    if (!response.ok || !result?.user?.id) redirect(result?.error_code === "email_not_confirmed" || result?.msg?.toLowerCase().includes("email not confirmed") ? "/login?unconfirmed=1" : "/login?error=1");
     userId = result.user.id;
     var accessToken = result.access_token;
     var refreshToken = result.refresh_token;
-    const profileResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/profiles?select=profile&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
-    const profiles = profileResponse.ok ? await profileResponse.json() as { profile?: string }[] : [];
+    const profileResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/profiles?select=profile,active&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+    const profiles = profileResponse.ok ? await profileResponse.json() as { profile?: string; active?: boolean }[] : [];
+    if (profiles[0]?.active === false) redirect("/login?disabled=1");
     role = normalizeRole(profiles[0]?.profile);
     const activeResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/active_sessions?select=session_id,last_seen,device_label&user_id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
     if (activeResponse.ok) {
