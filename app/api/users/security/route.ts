@@ -6,6 +6,7 @@ type AdminUser = { id: string; email?: string; last_sign_in_at?: string; created
 type Profile = { id: string; active?: boolean; blocked_at?: string; blocked_by?: string };
 type ActiveSession = { user_id: string; session_id: string; device_label?: string; last_seen?: string; created_at?: string };
 type Attempt = { id: string; user_id?: string; email: string; successful: boolean; reason?: string; ip_address?: string; user_agent?: string; created_at: string };
+type SecurityPolicy = { min_password_length: number; require_uppercase: boolean; require_lowercase: boolean; require_number: boolean; require_symbol: boolean; max_failed_attempts: number; lock_minutes: number; require_admin_mfa: boolean };
 
 async function adminContext(request: NextRequest) {
   const token = request.cookies.get("uccw_session")?.value;
@@ -30,31 +31,44 @@ async function writeAudit(context: NonNullable<Awaited<ReturnType<typeof adminCo
 export async function GET(request: NextRequest) {
   const context = await adminContext(request);
   if (!context) return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
-  const [authResponse, profileResponse, sessionResponse, attemptResponse] = await Promise.all([
+  const [authResponse, profileResponse, sessionResponse, attemptResponse, policyResponse, alertResponse] = await Promise.all([
     fetch(`${context.url}/auth/v1/admin/users?page=1&per_page=1000`, { headers: headers(context.serviceKey), cache: "no-store" }),
     fetch(`${context.url}/rest/v1/profiles?select=id,active,blocked_at,blocked_by`, { headers: headers(context.serviceKey), cache: "no-store" }),
     fetch(`${context.url}/rest/v1/active_sessions?select=user_id,session_id,device_label,last_seen,created_at`, { headers: headers(context.serviceKey), cache: "no-store" }),
-    fetch(`${context.url}/rest/v1/login_attempts?select=id,user_id,email,successful,reason,ip_address,user_agent,created_at&order=created_at.desc&limit=500`, { headers: headers(context.serviceKey), cache: "no-store" })
+    fetch(`${context.url}/rest/v1/login_attempts?select=id,user_id,email,successful,reason,ip_address,user_agent,created_at&order=created_at.desc&limit=500`, { headers: headers(context.serviceKey), cache: "no-store" }),
+    fetch(`${context.url}/rest/v1/security_settings?select=*&id=eq.default&limit=1`, { headers: headers(context.serviceKey), cache: "no-store" }),
+    fetch(`${context.url}/rest/v1/security_alerts?select=*&resolved_at=is.null&order=created_at.desc&limit=100`, { headers: headers(context.serviceKey), cache: "no-store" })
   ]);
   if (!authResponse.ok) return NextResponse.json({ error: "Could not load authentication users." }, { status: authResponse.status });
   const auth = await authResponse.json() as { users?: AdminUser[] };
   const profiles = profileResponse.ok ? await profileResponse.json() as Profile[] : [];
   const sessions = sessionResponse.ok ? await sessionResponse.json() as ActiveSession[] : [];
   const attempts = attemptResponse.ok ? await attemptResponse.json() as Attempt[] : [];
+  const policies = policyResponse.ok ? await policyResponse.json() as SecurityPolicy[] : [];
+  const alerts = alertResponse.ok ? await alertResponse.json() as Record<string, unknown>[] : [];
   const profileById = new Map(profiles.map((item) => [item.id, item]));
   const activeCutoff = Date.now() - 10 * 60 * 1000;
   const sessionById = new Map(sessions.map((item) => [item.user_id, { ...item, active: Boolean(item.last_seen && new Date(item.last_seen).getTime() >= activeCutoff) }]));
   const failedById = new Map<string, Attempt[]>();
   attempts.filter((item) => !item.successful).forEach((item) => { const key = item.user_id || item.email.toLowerCase(); failedById.set(key, [...(failedById.get(key) || []), item]); });
   const users = (auth.users || []).map((user) => ({ id: user.id, email: user.email || "", lastSignInAt: user.last_sign_in_at || null, createdAt: user.created_at || null, mustChangePassword: user.user_metadata?.must_change_password === true, blocked: profileById.get(user.id)?.active === false, blockedAt: profileById.get(user.id)?.blocked_at || null, session: sessionById.get(user.id) || null, failedAttempts: failedById.get(user.id) || failedById.get((user.email || "").toLowerCase()) || [] }));
-  return NextResponse.json({ users, attempts });
+  return NextResponse.json({ users, attempts, policy: policies[0] || null, alerts });
 }
 
 export async function PATCH(request: NextRequest) {
   const context = await adminContext(request);
   if (!context) return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
-  const payload = await request.json().catch(() => null) as { userId?: string; action?: "block" | "unblock" | "temporary-password" | "force-password-change" | "close-session"; password?: string } | null;
-  if (!payload?.userId || !payload.action) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  const payload = await request.json().catch(() => null) as { userId?: string; action?: "block" | "unblock" | "temporary-password" | "force-password-change" | "close-session" | "update-policy"; password?: string; policy?: Partial<SecurityPolicy> } | null;
+  if (!payload?.action) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  if (payload.action === "update-policy") {
+    const policy = payload.policy; if (!policy) return NextResponse.json({ error: "Invalid password policy." }, { status: 400 });
+    const min = Math.min(Math.max(Number(policy.min_password_length) || 10, 8), 64); const attempts = Math.min(Math.max(Number(policy.max_failed_attempts) || 5, 3), 20); const minutes = Math.min(Math.max(Number(policy.lock_minutes) || 15, 5), 1440);
+    const row = { id: "default", min_password_length: min, require_uppercase: policy.require_uppercase !== false, require_lowercase: policy.require_lowercase !== false, require_number: policy.require_number !== false, require_symbol: policy.require_symbol !== false, max_failed_attempts: attempts, lock_minutes: minutes, require_admin_mfa: policy.require_admin_mfa !== false, updated_at: new Date().toISOString(), updated_by: context.actor };
+    const response = await fetch(`${context.url}/rest/v1/security_settings?on_conflict=id`, { method: "POST", headers: headers(context.serviceKey, { Prefer: "resolution=merge-duplicates,return=minimal" }), body: JSON.stringify(row) });
+    if (!response.ok) return NextResponse.json({ error: "Could not update the security policy. Apply the migration first." }, { status: response.status });
+    await writeAudit(context, "update-security-policy", "security-settings", { administrator: context.actor }); return NextResponse.json({ ok: true });
+  }
+  if (!payload.userId) return NextResponse.json({ error: "Invalid user." }, { status: 400 });
   const authUrl = `${context.url}/auth/v1/admin/users/${encodeURIComponent(payload.userId)}`;
   if (payload.action === "block" || payload.action === "unblock") {
     const active = payload.action === "unblock";

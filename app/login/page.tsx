@@ -1,7 +1,7 @@
 import { continueSession, login } from "./actions";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; active?: string; device?: string; inactive?: string; replaced?: string; unconfirmed?: string; disabled?: string }> }) {
-  const { error, active, device, inactive, replaced, unconfirmed, disabled } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; active?: string; device?: string; inactive?: string; replaced?: string; unconfirmed?: string; disabled?: string; locked?: string }> }) {
+  const { error, active, device, inactive, replaced, unconfirmed, disabled, locked } = await searchParams;
   const hasSupabaseAuth = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
   return (
     <main className="login-page">
@@ -19,6 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           {error && <p className="error" role="alert">Correo o contraseña incorrectos.</p>}
           {unconfirmed && <p className="error" role="alert">La cuenta existe, pero su correo todavía no ha sido confirmado. Solicite al administrador que establezca una nueva contraseña.</p>}
           {disabled && <p className="error" role="alert">Esta cuenta está inactiva. Comuníquese con el administrador.</p>}
+          {locked && <p className="error" role="alert">La cuenta está bloqueada temporalmente por varios intentos incorrectos. Inténtelo más tarde o contacte al administrador.</p>}
           {inactive && <p className="error" role="alert">La sesión se cerró después de 10 minutos de inactividad.</p>}
           {replaced && <p className="error" role="alert">La sesión se cerró porque la cuenta inició sesión en otro dispositivo.</p>}
           <button type="submit">Entrar</button>

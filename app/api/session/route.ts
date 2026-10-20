@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       const activeResponse = await fetch(`${url}/rest/v1/active_sessions?select=session_id&user_id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
       if (activeResponse.ok) {
         const rows = await activeResponse.json() as { session_id?: string }[];
-        if (rows[0]?.session_id && rows[0].session_id !== sessionId) return NextResponse.json({ authenticated: false, reason: "replaced" }, { status: 409 });
+        if (!rows[0]?.session_id || rows[0].session_id !== sessionId) return NextResponse.json({ authenticated: false, reason: "replaced" }, { status: 409 });
         if (rows[0]?.session_id === sessionId) await fetch(`${url}/rest/v1/active_sessions?user_id=eq.${encodeURIComponent(userId)}&session_id=eq.${encodeURIComponent(sessionId)}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ last_seen: new Date().toISOString() }), cache: "no-store" });
       }
     }

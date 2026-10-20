@@ -33,5 +33,5 @@ export async function GET(request: NextRequest) {
   if (!can(current.role, permissionModule, "download", current.permissions)) return NextResponse.json({ error: "Su usuario no permite descargar documentos." }, { status: 403 });
   const response = await fetch(`${current.url}/storage/v1/object/authenticated/${bucket}/${path}`, { headers: headers(current.key, current.accessToken) });
   if (!response.ok || !response.body) return NextResponse.json({ error: "Archivo no encontrado" }, { status: response.status || 404 });
-  await logDownload(current, path); return new NextResponse(response.body, { headers: { "Content-Type": response.headers.get("Content-Type") || "application/octet-stream", "Content-Disposition": response.headers.get("Content-Disposition") || "inline", "Cache-Control": "private, max-age=300" } });
+  await logDownload(current, path); return new NextResponse(response.body, { headers: { "Content-Type": response.headers.get("Content-Type") || "application/octet-stream", "Content-Disposition": response.headers.get("Content-Disposition") || "inline", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'" } });
 }
