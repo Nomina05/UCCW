@@ -4,7 +4,7 @@ import { can, Module, normalizePermissions, normalizeRole } from "../../../../li
 import { resolveProfileAccess } from "../../../../lib/profile-role";
 import { incompleteFields, normalizeDataRecord, requiredFields, validateDataRecord } from "../../../../lib/data-quality";
 
-type Resource = "clients" | "client-services" | "cases" | "calendar-events" | "communications" | "communication-templates" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "settings";
+type Resource = "clients" | "client-services" | "cases" | "calendar-events" | "communications" | "communication-templates" | "report-goals" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "settings";
 type StoredRecord = Record<string, unknown> & { id?: string; clientId?: string; donorId?: string; volunteerId?: string; fullName?: string; firstName?: string; lastName?: string; date?: string; address?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string; createdAt?: string };
 
 function hasContent(value: unknown) { return typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null; }
@@ -29,6 +29,7 @@ const resources: Record<Resource, { table: string; module: Module; serviceType?:
   "calendar-events": { table: "calendar_events", module: "agenda", row: (record) => ({ id: record.id, event_date: record.date, event_type: record.type || "event", title: record.title, assigned_to: record.assignedTo || null, data: record }) },
   communications: { table: "communications", module: "communications", row: (record) => ({ id: record.id, client_id: record.clientId || null, channel: record.channel, recipient: record.recipient, subject: record.subject || null, delivery_status: record.status || "Draft", scheduled_at: record.scheduledAt || null, sent_at: record.sentAt || null, data: record }) },
   "communication-templates": { table: "communication_templates", module: "communications", row: (record) => ({ id: record.id, template_name: record.name, channel: record.channel || "email", language: record.language || "en", data: record }) },
+  "report-goals": { table: "report_goals", module: "reports", row: (record) => ({ id: record.id, goal_month: record.month, metric: record.metric, target_value: Number(record.target) || 0, data: record }) },
   users: { table: "user_records", module: "users", row: (record) => ({ id: record.id, email: record.email, profile: record.profile || null, active: record.active === "Yes", data: record }) },
   donors: { table: "donors", module: "donors", row: (record) => ({ id: record.id, donor_number: record.donorId, first_name: record.firstName, last_name: record.lastName, donation_date: record.date || null, amount: record.amount || null, data: record }) },
   volunteers: { table: "volunteers", module: "volunteers", row: (record) => ({ id: record.id, volunteer_number: record.volunteerId, first_name: record.firstName, last_name: record.lastName, status: record.status || "Active", volunteer_date: record.date || null, data: record }) },
