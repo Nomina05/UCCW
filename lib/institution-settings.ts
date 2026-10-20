@@ -7,7 +7,7 @@ export type InstitutionSettings = {
   templates: { letterHeader: string; letterFooter: string; reportHeader: string; reportFooter: string };
   serviceCatalog: ServiceCatalogItem[];
   caseStatuses: string[];
-  storage: { provider: "supabase" | "google-drive" | "dropbox"; status: "active" | "planned" };
+  storage: { provider: "supabase" | "google-drive" | "dropbox" | "sharepoint"; status: "active" | "planned" };
   updatedAt?: string;
 };
 
