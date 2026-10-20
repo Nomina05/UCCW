@@ -27,6 +27,14 @@ async function registerActiveSession(url: string, key: string, data: SessionData
   await fetch(`${url.replace(/\/$/, "")}/rest/v1/active_sessions?on_conflict=user_id`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${data.accessToken}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ user_id: data.userId, session_id: data.sessionId, device_label: deviceLabel, last_seen: new Date().toISOString(), created_at: new Date().toISOString() }), cache: "no-store" });
 }
 
+async function recordLoginAttempt(url: string, email: string, successful: boolean, reason: string, userId?: string) {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) return;
+  const requestHeaders = await headers();
+  const forwarded = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
+  await fetch(`${url.replace(/\/$/, "")}/rest/v1/login_attempts`, { method: "POST", headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ email, user_id: userId || null, successful, reason, ip_address: forwarded || null, user_agent: requestHeaders.get("user-agent") || null }), cache: "no-store" }).catch(() => null);
+}
+
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
@@ -46,14 +54,14 @@ export async function login(formData: FormData) {
       cache: "no-store"
     });
     const result = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id?: string; user_metadata?: { must_change_password?: boolean } }; error_code?: string; msg?: string } | null;
-    if (!response.ok || !result?.user?.id) redirect(result?.error_code === "email_not_confirmed" || result?.msg?.toLowerCase().includes("email not confirmed") ? "/login?unconfirmed=1" : "/login?error=1");
+    if (!response.ok || !result?.user?.id) { await recordLoginAttempt(supabaseUrl, email, false, result?.error_code || "invalid_credentials"); redirect(result?.error_code === "email_not_confirmed" || result?.msg?.toLowerCase().includes("email not confirmed") ? "/login?unconfirmed=1" : "/login?error=1"); }
     userId = result.user.id;
     mustChangePassword = result.user.user_metadata?.must_change_password === true;
     var accessToken = result.access_token;
     var refreshToken = result.refresh_token;
     const profileResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/profiles?select=profile,active&id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
     const profiles = profileResponse.ok ? await profileResponse.json() as { profile?: string; active?: boolean }[] : [];
-    if (profiles[0]?.active === false) redirect("/login?disabled=1");
+    if (profiles[0]?.active === false) { await recordLoginAttempt(supabaseUrl, email, false, "account_blocked", userId); redirect("/login?disabled=1"); }
     role = normalizeRole(profiles[0]?.profile);
     const activeResponse = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/active_sessions?select=session_id,last_seen,device_label&user_id=eq.${encodeURIComponent(userId)}&limit=1`, { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
     if (activeResponse.ok) {
@@ -73,6 +81,7 @@ export async function login(formData: FormData) {
   }
 
   const session = { email, userId, accessToken, refreshToken, role, sessionId, mustChangePassword };
+  if (supabaseUrl && userId) await recordLoginAttempt(supabaseUrl, email, true, "success", userId);
   if (supabaseUrl && supabaseAnonKey) await registerActiveSession(supabaseUrl, supabaseAnonKey, session);
   await issueSession(session);
   redirect(mustChangePassword ? "/cambiar-clave" : "/dashboard");
