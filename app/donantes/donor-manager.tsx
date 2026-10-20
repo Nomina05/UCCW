@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
 import { deleteRemote, loadRemote, saveRemote } from "../lib/remote-records";
 import { exportExcel } from "../lib/excel-export";
+import { formatUsPhone, formatUsZip } from "../../lib/data-quality";
 
 type DonorForm = { donorId: string; firstName: string; lastName: string; address: string; city: string; state: string; zip: string; phone: string; email: string; date: string; amount: string; source: string; campaign: string; otherDonations: string; notes: string; };
 type Donor = DonorForm & { id: string; createdAt: string };
@@ -21,7 +22,7 @@ export default function DonorManager() {
   const [donors, setDonors] = useState<Donor[]>([]); const [search, setSearch] = useState(""); const [exporting, setExporting] = useState(false); const [exportError, setExportError] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Donor | null>(null); const [form, setForm] = useState<DonorForm>(initialForm);
   useEffect(() => { let active = true; loadRemote<Donor>("donors").then((records) => { if (active) setDonors(records.map(normalize)); }); return () => { active = false; }; }, []);
   function persist(next: Donor[]) { setDonors(next); }
-  function update<K extends keyof DonorForm>(key: K, value: DonorForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
+  function update<K extends keyof DonorForm>(key: K, value: DonorForm[K]) { const formatted = key === "phone" ? formatUsPhone(String(value)) : key === "zip" ? formatUsZip(String(value)) : value; setForm((current) => ({ ...current, [key]: formatted })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(donor: Donor) { setEditing(donor); setForm({ ...donor }); setIsFormOpen(true); }
   function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, donorId: nextId(donors) }; persist(editing ? donors.map((donor) => donor.id === editing.id ? record : donor) : [record, ...donors]); saveRemote("donors", record); setIsFormOpen(false); }

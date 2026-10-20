@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/sidebar";
 import { deleteRemote, loadRemote, saveRemote } from "../lib/remote-records";
 import { exportExcel } from "../lib/excel-export";
+import { formatUsPhone, formatUsZip } from "../../lib/data-quality";
 
 type VolunteerForm = { volunteerId: string; status: "Active" | "Inactive"; firstName: string; lastName: string; address: string; city: string; state: string; zip: string; phone: string; email: string; date: string; duties: string; hours: string; reason: string; age: string; languages: string; education: string; commitment: string; availability: string; skillsContribution: string; notes: string; };
 type Volunteer = VolunteerForm & { id: string; createdAt: string };
@@ -17,7 +18,7 @@ export default function VolunteerManager() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]); const [search, setSearch] = useState(""); const [exporting, setExporting] = useState(false); const [exportError, setExportError] = useState(""); const [isFormOpen, setIsFormOpen] = useState(false); const [editing, setEditing] = useState<Volunteer | null>(null); const [form, setForm] = useState<VolunteerForm>(initialForm);
   useEffect(() => { let active = true; loadRemote<Volunteer>("volunteers").then((records) => { if (active) setVolunteers(records.map(normalize)); }); return () => { active = false; }; }, []);
   function persist(next: Volunteer[]) { setVolunteers(next); }
-  function update<K extends keyof VolunteerForm>(key: K, value: VolunteerForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
+  function update<K extends keyof VolunteerForm>(key: K, value: VolunteerForm[K]) { const formatted = key === "phone" ? formatUsPhone(String(value)) : key === "zip" ? formatUsZip(String(value)) : value; setForm((current) => ({ ...current, [key]: formatted })); }
   function openNew() { setEditing(null); setForm(initialForm); setIsFormOpen(true); }
   function openEdit(volunteer: Volunteer) { setEditing(volunteer); setForm({ ...volunteer }); setIsFormOpen(true); }
   function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const record = editing ? { ...editing, ...form } : { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...form, volunteerId: nextId(volunteers) }; persist(editing ? volunteers.map((volunteer) => volunteer.id === editing.id ? record : volunteer) : [record, ...volunteers]); saveRemote("volunteers", record); setIsFormOpen(false); }

@@ -6,6 +6,7 @@ export type InstitutionSettings = {
   organization: { name: string; address: string; city: string; state: string; zip: string; phone: string; email: string; taxId: string; logoPath: string };
   templates: { letterHeader: string; letterFooter: string; reportHeader: string; reportFooter: string };
   serviceCatalog: ServiceCatalogItem[];
+  dataCatalogs: { cities: string[]; states: string[]; nationalities: string[] };
   caseStatuses: string[];
   caseWorkflow: string[];
   caseDepartments: string[];
@@ -27,6 +28,11 @@ export const defaultInstitutionSettings: InstitutionSettings = {
     { id: "food-distribution", name: "General Food Distribution", icon: "🥫", subservices: [] },
     { id: "clothing-drive", name: "Clothing Drive", icon: "👕", subservices: [] }
   ],
+  dataCatalogs: {
+    cities: ["New Rochelle", "Mount Vernon", "Yonkers", "White Plains", "Mamaroneck", "Port Chester", "The Bronx", "New York"],
+    states: ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC", "PR"],
+    nationalities: ["American", "Dominican", "Mexican", "Guatemalan", "Honduran", "Salvadoran", "Colombian", "Ecuadorian", "Peruvian", "Venezuelan", "Haitian", "Jamaican", "Cuban", "Puerto Rican", "Other"]
+  },
   caseStatuses: ["Abierto", "En proceso", "Cerrado", "Cancelado"],
   caseWorkflow: ["Intake", "Assessment", "Documentation", "Service Delivery", "Follow-up", "Closure"],
   caseDepartments: ["Social Services", "Legal / Immigration", "Worker Resource Center", "Educational Empowerment", "Health / Wellness"],
@@ -42,6 +48,11 @@ export function mergeInstitutionSettings(value?: Partial<InstitutionSettings>): 
     templates: { ...defaultInstitutionSettings.templates, ...value?.templates },
     storage: { ...defaultInstitutionSettings.storage, ...value?.storage },
     serviceCatalog: value?.serviceCatalog?.length ? value.serviceCatalog : defaultInstitutionSettings.serviceCatalog,
+    dataCatalogs: {
+      cities: value?.dataCatalogs?.cities?.length ? value.dataCatalogs.cities : defaultInstitutionSettings.dataCatalogs.cities,
+      states: value?.dataCatalogs?.states?.length ? value.dataCatalogs.states : defaultInstitutionSettings.dataCatalogs.states,
+      nationalities: value?.dataCatalogs?.nationalities?.length ? value.dataCatalogs.nationalities : defaultInstitutionSettings.dataCatalogs.nationalities
+    },
     caseStatuses: value?.caseStatuses?.length ? value.caseStatuses : defaultInstitutionSettings.caseStatuses,
     caseWorkflow: value?.caseWorkflow?.length ? value.caseWorkflow : defaultInstitutionSettings.caseWorkflow,
     caseDepartments: value?.caseDepartments?.length ? value.caseDepartments : defaultInstitutionSettings.caseDepartments,

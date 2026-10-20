@@ -99,6 +99,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   records = records.map((record) => { const normalized = normalizeDataRecord(record); return { ...normalized, qualityIssues: incompleteFields(name, normalized) }; });
   const invalid = records.map((record, index) => ({ index: index + 1, id: record.id, errors: validateDataRecord(name, record, required) })).filter((item) => item.errors.length);
   if (invalid.length) return NextResponse.json({ error: `${invalid.length} registro(s) no cumplen las reglas de calidad.`, rejected: invalid }, { status: 422 });
+  if (name === "clients" && records.length === 1 && !payload.mergeExisting) {
+    const candidate = records[0]; const fullName = String(candidate.fullName || "").trim(); const phone = String(candidate.phone || "").replace(/\D/g, ""); const birth = String(candidate.dateOfBirth || "");
+    if (fullName) {
+      const duplicateQuery = new URLSearchParams({ select: "id,client_number,data", full_name: `eq.${fullName}`, limit: "20" });
+      const duplicateResponse = await fetch(`${current.url}/rest/v1/clients?${duplicateQuery.toString()}`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
+      if (duplicateResponse.ok) {
+        const matches = await duplicateResponse.json() as { id: string; client_number?: string; data?: StoredRecord }[];
+        const duplicate = matches.find((row) => row.id !== candidate.id && ((phone && String(row.data?.phone || "").replace(/\D/g, "") === phone) || (birth && String(row.data?.dateOfBirth || "") === birth)));
+        if (duplicate) return NextResponse.json({ error: `Posible cliente duplicado (${duplicate.client_number || duplicate.id}). Revise o combine el expediente existente.` }, { status: 409 });
+      }
+    }
+  }
   if (name === "users" && records.length === 1 && payload.password) {
     const record = records[0]; const email = String(record.email || "").trim().toLowerCase();
     const profileLookup = await fetch(`${current.url}/rest/v1/profiles?select=id&email=eq.${encodeURIComponent(email)}&limit=1`, { headers: headers(current.key, current.accessToken), cache: "no-store" });
