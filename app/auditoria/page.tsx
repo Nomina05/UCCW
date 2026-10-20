@@ -1,5 +1,4 @@
-import { requireSession } from "../../lib/session";
-import AuditLog from "./audit-log";
+import { redirect } from "next/navigation";
 
-export default async function AuditPage() { await requireSession("audit"); return <AuditLog />; }
+export default function AuditPage() { redirect("/administracion?tab=audit"); }
 

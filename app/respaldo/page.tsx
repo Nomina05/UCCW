@@ -1,5 +1,4 @@
-import { requireSession } from "../../lib/session";
-import BackupManager from "./backup-manager";
+import { redirect } from "next/navigation";
 
-export default async function BackupPage() { await requireSession("backup"); return <BackupManager />; }
+export default function BackupPage() { redirect("/administracion?tab=backup"); }
 

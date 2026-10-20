@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { LanguageSwitcher, useLanguage } from "./language-provider";
 import { can, Module, ModulePermissions, Role } from "../../lib/security";
 
-type Section = "inicio" | "clientes" | "casos" | "agenda" | "comunicaciones" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion";
+type Section = "inicio" | "clientes" | "casos" | "agenda" | "comunicaciones" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion" | "administracion";
 
 const links: { id: Section; module: Module; href: string; en: string; es: string; icon: string }[] = [
   { id: "inicio", module: "dashboard", href: "/dashboard", en: "Home", es: "Inicio", icon: "⌂" },
@@ -19,9 +19,7 @@ const links: { id: Section; module: Module; href: string; en: string; es: string
   { id: "servicios", module: "services", href: "/servicios", en: "Services", es: "Servicios", icon: "▣" },
   { id: "usuarios", module: "users", href: "/usuarios", en: "Users", es: "Usuarios", icon: "♙" },
   { id: "reportes", module: "reports", href: "/reportes", en: "Reports", es: "Reportes", icon: "▦" },
-  { id: "auditoria", module: "audit", href: "/auditoria", en: "Audit", es: "Auditoría", icon: "◷" },
-  { id: "respaldo", module: "backup", href: "/respaldo", en: "Backup", es: "Respaldo", icon: "⇅" },
-  { id: "configuracion", module: "configuration", href: "/configuracion", en: "Settings", es: "Configuración", icon: "⚙" }
+  { id: "administracion", module: "configuration", href: "/administracion", en: "Administration", es: "Administración", icon: "⚙" }
 ];
 
 export default function Sidebar({ active }: { active: Section }) {

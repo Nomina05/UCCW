@@ -1,7 +1,3 @@
-import { requireSession } from "../../lib/session";
-import ConfigurationManager from "./configuration-manager";
+import { redirect } from "next/navigation";
 
-export default async function ConfigurationPage() {
-  await requireSession("configuration");
-  return <ConfigurationManager />;
-}
+export default function ConfigurationPage() { redirect("/administracion?tab=settings"); }
