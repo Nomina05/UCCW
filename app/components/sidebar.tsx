@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { LanguageSwitcher, useLanguage } from "./language-provider";
 import { can, Module, ModulePermissions, Role } from "../../lib/security";
 
-type Section = "inicio" | "clientes" | "casos" | "agenda" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion";
+type Section = "inicio" | "clientes" | "casos" | "agenda" | "comunicaciones" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion";
 
 const links: { id: Section; module: Module; href: string; en: string; es: string; icon: string }[] = [
   { id: "inicio", module: "dashboard", href: "/dashboard", en: "Home", es: "Inicio", icon: "⌂" },
@@ -13,6 +13,7 @@ const links: { id: Section; module: Module; href: string; en: string; es: string
   { id: "busqueda", module: "clients", href: "/busqueda", en: "Advanced Search", es: "Búsqueda avanzada", icon: "⌕" },
   { id: "casos", module: "cases", href: "/casos", en: "Case Management", es: "Control de casos", icon: "◫" },
   { id: "agenda", module: "agenda", href: "/agenda", en: "Calendar", es: "Agenda", icon: "▤" },
+  { id: "comunicaciones", module: "communications", href: "/comunicaciones", en: "Communications", es: "Comunicaciones", icon: "✉" },
   { id: "donantes", module: "donors", href: "/donantes", en: "Donors", es: "Donantes", icon: "♥" },
   { id: "voluntarios", module: "volunteers", href: "/voluntarios", en: "Volunteers", es: "Voluntarios", icon: "♧" },
   { id: "servicios", module: "services", href: "/servicios", en: "Services", es: "Servicios", icon: "▣" },
