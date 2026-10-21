@@ -28,7 +28,7 @@ button:hover { background: #105485; }
 .dashboard-actions .secondary-button { margin-top: 22px; }
 .clients-page { min-height: 100vh; background: #f2f5f9; }
 .app-header .brand { color: white; text-decoration: none; font-size: 1.15rem; font-weight: 700; letter-spacing: .08em; }
-.clients-content { max-width: 1180px; margin: 0 auto; padding: 42px 24px; }
+.clients-content { max-width: 1250px; margin: 0 auto; padding: 42px 24px; }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .page-heading h1 { margin: 5px 0; }.page-heading p { color: #5d6b7e; margin: 0; }.page-heading .eyebrow { color: #1769aa; }
 .heading-actions { display: flex; gap: 10px; align-items: center; }.heading-actions .secondary-button { background: #e8f0f8; color: #1769aa; }
