@@ -5,15 +5,14 @@ import { useEffect, useState } from "react";
 import { LanguageSwitcher, useLanguage } from "./language-provider";
 import { can, Module, ModulePermissions, Role } from "../../lib/security";
 
-type Section = "inicio" | "clientes" | "casos" | "agenda" | "comunicaciones" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion" | "administracion";
+type Section = "inicio" | "clientes" | "casos" | "agenda" | "comunicaciones" | "coordinacion" | "donantes" | "voluntarios" | "servicios" | "usuarios" | "reportes" | "auditoria" | "respaldo" | "busqueda" | "configuracion" | "administracion";
 
 const links: { id: Section; module: Module; href: string; en: string; es: string; icon: string }[] = [
   { id: "inicio", module: "dashboard", href: "/dashboard", en: "Home", es: "Inicio", icon: "⌂" },
   { id: "clientes", module: "clients", href: "/clientes", en: "Clients", es: "Clientes", icon: "◉" },
   { id: "busqueda", module: "clients", href: "/busqueda", en: "Advanced Search", es: "Búsqueda avanzada", icon: "⌕" },
   { id: "casos", module: "cases", href: "/casos", en: "Case Management", es: "Control de casos", icon: "◫" },
-  { id: "agenda", module: "agenda", href: "/agenda", en: "Calendar", es: "Agenda", icon: "▤" },
-  { id: "comunicaciones", module: "communications", href: "/comunicaciones", en: "Communications", es: "Comunicaciones", icon: "✉" },
+  { id: "coordinacion", module: "agenda", href: "/coordinacion", en: "Institutional Coordination", es: "Coordinación Institucional", icon: "▤" },
   { id: "donantes", module: "donors", href: "/donantes", en: "Donors", es: "Donantes", icon: "♥" },
   { id: "voluntarios", module: "volunteers", href: "/voluntarios", en: "Volunteers", es: "Voluntarios", icon: "♧" },
   { id: "servicios", module: "services", href: "/servicios", en: "Services", es: "Servicios", icon: "▣" },
@@ -29,7 +28,7 @@ export default function Sidebar({ active }: { active: Section }) {
   return <><aside className="sidebar">
     <div className="sidebar-top"><Link className="sidebar-brand" href="/dashboard"><span>U</span><strong>UCCW</strong></Link><LanguageSwitcher /></div>
     <p className="sidebar-caption">{language === "en" ? "SYSTEM MANAGEMENT" : "GESTIÓN DEL SISTEMA"}</p>
-    <nav>{links.filter((link) => can(access.role, link.module, "read", access.permissions)).map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
+    <nav>{links.filter((link) => link.id === "coordinacion" ? (["agenda", "communications", "training"] as Module[]).some((module) => can(access.role, module, "read", access.permissions)) : can(access.role, link.module, "read", access.permissions)).map((link) => <Link key={link.id} href={link.href} className={link.id === active ? "active" : ""}><span aria-hidden="true">{link.icon}</span>{language === "en" ? link.en : link.es}</Link>)}</nav>
     <p className="sidebar-footer">{language === "en" ? "Case management system" : "Sistema de registro de casos"}</p>
   </aside><details className="session-menu"><summary aria-label={language === "en" ? "Active user menu" : "Menú de usuario activo"}><span className="session-avatar" aria-hidden="true">♙</span><span className="session-identity"><strong>{access.displayName || (language === "en" ? "Active user" : "Usuario activo")}</strong><small>{access.email || access.role}</small></span><span className="session-chevron" aria-hidden="true">⌄</span></summary><div className="session-dropdown"><span>{language === "en" ? "Signed in as" : "Sesión iniciada como"}</span><strong>{access.displayName || access.email}</strong><small>{access.role}</small><button type="button" onClick={() => void logout()}>{language === "en" ? "Sign out" : "Cerrar sesión"}</button></div></details></>;
 }
