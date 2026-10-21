@@ -1,6 +1,6 @@
 export type Role = "Administrator" | "Supervisor" | "Employee" | "Read Only";
 export type Action = "read" | "write" | "delete" | "download";
-export type Module = "dashboard" | "clients" | "cases" | "agenda" | "communications" | "donors" | "volunteers" | "services" | "users" | "reports" | "audit" | "backup" | "configuration";
+export type Module = "dashboard" | "clients" | "cases" | "agenda" | "communications" | "donors" | "volunteers" | "services" | "users" | "reports" | "audit" | "backup" | "training" | "configuration";
 export type ModulePermissions = Partial<Record<Module, Action[]>>;
 
 export const modules: { id: Module; en: string; es: string; actions: Action[] }[] = [
@@ -16,12 +16,13 @@ export const modules: { id: Module; en: string; es: string; actions: Action[] }[
   { id: "reports", en: "Reports", es: "Reportes", actions: ["read", "download"] },
   { id: "audit", en: "Audit", es: "Auditoría", actions: ["read"] },
   { id: "backup", en: "Backup", es: "Respaldo", actions: ["read", "write", "download"] },
+  { id: "training", en: "Training", es: "Capacitaciones", actions: ["read", "write", "delete"] },
   { id: "configuration", en: "Settings", es: "Configuración", actions: ["read", "write", "download"] }
 ];
 
 const matrix: Record<Role, Partial<Record<Module, Action[]>>> = {
-  Administrator: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], agenda: ["read", "write", "delete"], communications: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read", "write", "delete"], reports: ["read", "download"], audit: ["read"], backup: ["read", "write", "download"], configuration: ["read", "write", "download"] },
-  Supervisor: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], agenda: ["read", "write", "delete"], communications: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read"], reports: ["read", "download"], audit: ["read"], backup: ["read", "download"], configuration: ["read", "write", "download"] },
+  Administrator: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], agenda: ["read", "write", "delete"], communications: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read", "write", "delete"], reports: ["read", "download"], audit: ["read"], backup: ["read", "write", "download"], training: ["read", "write", "delete"], configuration: ["read", "write", "download"] },
+  Supervisor: { dashboard: ["read"], clients: ["read", "write", "delete", "download"], cases: ["read", "write", "delete"], agenda: ["read", "write", "delete"], communications: ["read", "write", "delete"], donors: ["read", "write", "delete"], volunteers: ["read", "write", "delete"], services: ["read", "write", "delete"], users: ["read"], reports: ["read", "download"], audit: ["read"], backup: ["read", "download"], training: ["read", "write", "delete"], configuration: ["read", "write", "download"] },
   Employee: { dashboard: ["read"], clients: ["read", "write", "download"], cases: ["read", "write"], agenda: ["read", "write"], communications: ["read", "write"], donors: ["read", "write"], volunteers: ["read", "write"], services: ["read", "write"], reports: ["read", "download"] },
   "Read Only": { dashboard: ["read"], clients: ["read", "download"], cases: ["read"], agenda: ["read"], communications: ["read"], donors: ["read"], volunteers: ["read"], services: ["read"], reports: ["read", "download"] }
 };

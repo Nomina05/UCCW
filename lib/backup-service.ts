@@ -1,6 +1,6 @@
 import { gzipSync, gunzipSync } from "node:zlib";
 
-export const backupTables = ["clients", "client_services", "case_control", "donors", "volunteers", "service_records", "user_records", "calendar_events", "communications", "communication_templates", "report_goals", "institution_settings"] as const;
+export const backupTables = ["clients", "client_services", "case_control", "donors", "volunteers", "service_records", "user_records", "calendar_events", "communications", "communication_templates", "training_records", "report_goals", "institution_settings"] as const;
 type Environment = { url: string; key: string };
 const headers = (key: string, extra: Record<string, string> = {}) => ({ apikey: key, Authorization: `Bearer ${key}`, ...extra });
 

@@ -4,7 +4,7 @@ import { can, Module, normalizePermissions, normalizeRole } from "../../../../li
 import { resolveProfileAccess } from "../../../../lib/profile-role";
 import { incompleteFields, normalizeDataRecord, requiredFields, validateDataRecord } from "../../../../lib/data-quality";
 
-type Resource = "clients" | "client-services" | "cases" | "calendar-events" | "communications" | "communication-templates" | "report-goals" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "settings";
+type Resource = "clients" | "client-services" | "cases" | "calendar-events" | "communications" | "communication-templates" | "report-goals" | "donors" | "volunteers" | "food" | "clothing" | "users" | "audit" | "training" | "settings";
 type StoredRecord = Record<string, unknown> & { id?: string; clientId?: string; donorId?: string; volunteerId?: string; fullName?: string; firstName?: string; lastName?: string; date?: string; address?: string; children?: string; adults?: string; seniors?: string; totalHousehold?: string; createdAt?: string };
 
 function hasContent(value: unknown) { return typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null; }
@@ -36,6 +36,7 @@ const resources: Record<Resource, { table: string; module: Module; serviceType?:
   food: { table: "service_records", module: "services", serviceType: "food_distribution", row: (record) => ({ id: record.id, service_type: "food_distribution", service_date: record.date, full_name: record.fullName, address: record.address || null, children: Number(record.children) || 0, adults: Number(record.adults) || 0, seniors: Number(record.seniors) || 0, total_household: [record.children, record.adults, record.seniors].reduce((sum, value) => sum + (Number(value) || 0), 0), data: record }) },
   clothing: { table: "service_records", module: "services", serviceType: "clothing_drive", row: (record) => ({ id: record.id, service_type: "clothing_drive", service_date: record.date, full_name: record.fullName, total_household: Number(record.totalHousehold) || 0, data: record }) },
   audit: { table: "audit_logs", module: "audit", row: (record) => ({ id: record.id, data: record }) },
+  training: { table: "training_records", module: "training", row: (record) => ({ id: record.id, title: record.title, start_date: record.startDate || null, status: record.status || "Planned", instructor: record.instructor || null, data: record }) },
   settings: { table: "institution_settings", module: "configuration", row: (record) => ({ id: record.id, organization_name: String((record.organization as { name?: unknown } | undefined)?.name || "UCCW"), data: record }) }
 };
 
