@@ -33,6 +33,20 @@ export async function loadRemotePage<T>(resource: string, page: number, pageSize
   if (!response.ok) throw new Error(result?.error || `Error ${response.status} al cargar los registros.`);
   return { records: result?.records || [], total: Number(result?.total) || 0 };
 }
+export async function loadRemoteRange<T>(resource: string, from: string, to: string): Promise<T[]> {
+  const records: T[] = [];
+  const pageSize = 1000;
+  for (let page = 1; page <= 50; page += 1) {
+    const params = new URLSearchParams({ page: String(page), limit: String(pageSize), from, to });
+    const response = await request(`/api/records/${resource}?${params}`, { cache: "no-store" });
+    const result = await response.json().catch(() => null) as { records?: T[]; total?: number; error?: string } | null;
+    if (!response.ok) throw new Error(result?.error || `Error ${response.status} al cargar el período.`);
+    const batch = result?.records || [];
+    records.push(...batch);
+    if (records.length >= (Number(result?.total) || 0) || batch.length < pageSize) break;
+  }
+  return records;
+}
 export async function loadRemoteByIds<T>(resource: string, ids: string[]): Promise<T[]> {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return [];
